@@ -83,6 +83,10 @@
             },
             "development": {
               "buildTarget": "willaibeat-us:build:development"
+            },
+            "tailnet": {
+              "buildTarget": "willaibeat-us:build:development",
+              "allowedHosts": [".ts.net"]
             }
           },
           "defaultConfiguration": "development",
