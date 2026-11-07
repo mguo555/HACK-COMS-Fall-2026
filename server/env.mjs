@@ -1,7 +1,7 @@
 // Loads the project's .env (if any) into process.env. Imported first by index.mjs so that
 // later modules see the values when they're evaluated.
 //
-// .env is where the Anthropic API key lives. It is git-ignored and only ever read here, on the
+// .env is where the Gemini API key lives. It is git-ignored and only ever read here, on the
 // server: the key is never sent to the browser or written to logs.
 import { existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -10,8 +10,8 @@ const envPath = fileURLToPath(new URL('../.env', import.meta.url));
 
 if (existsSync(envPath)) {
   process.loadEnvFile(envPath);
-  // A blank "ANTHROPIC_API_KEY=" line would otherwise shadow other credential sources.
-  for (const name of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN']) {
+  // Treat a blank "GEMINI_API_KEY=" line as not set.
+  for (const name of ['GEMINI_API_KEY']) {
     if (process.env[name]?.trim() === '') delete process.env[name];
   }
   // On macOS/Linux, warn if other users on this machine could read the key.

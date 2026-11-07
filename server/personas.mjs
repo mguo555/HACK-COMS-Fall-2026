@@ -8,7 +8,7 @@
  * @property {string} bio        Who they are.
  * @property {string} voice      How they talk.
  * @property {string} style      How they play poker.
- * @property {string} persuasion What does and doesn't move them — the heart of the game.
+ * @property {string} persuasion What does and doesn't move them. The heart of the game.
  */
 
 /** @type {Record<string, Persona>} */
@@ -22,7 +22,7 @@ export const PERSONAS = {
     style:
       'Tight and aggressive. Plays few hands, but bets them hard. Folds weak hands without regret and respects pot odds.',
     persuasion:
-      'Nearly immune to emotion: flattery, threats, sob stories and trash talk make him more suspicious, not less. The only thing that moves him is a sharp, specific argument about the cards — what hands the human could hold given the board and the betting, or why the pot odds favour a different move. If the human makes a genuinely clever point he will grudgingly respect it and may act on it. A clumsy bluff makes him more likely to call or raise.',
+      'Nearly immune to emotion: flattery, threats, sob stories and trash talk make him more suspicious, not less. The only thing that moves him is a sharp, specific argument about the cards: what hands the human could hold given the board and the betting, or why the pot odds favour a different move. If the human makes a genuinely clever point he will grudgingly respect it and may act on it. A clumsy bluff makes him more likely to call or raise.',
   },
   rosie: {
     id: 'rosie',
@@ -44,7 +44,7 @@ export const PERSONAS = {
     style:
       'Loose and aggressive. Bluffs often, hates folding, raises to show he is the big dog at the table.',
     persuasion:
-      'His ego is his weak spot. Taunts and dares ("you are scared", "bet you won\'t raise") push him to call or raise — reverse psychology works on him, and telling him to fold makes him want to do the opposite. Flattery also works: if the human frames folding as what a smart, big-time player would do ("a pro like you knows when to lay it down"), he may fold to look wise. He cannot stand looking weak.',
+      'His ego is his weak spot. Taunts and dares ("you are scared", "bet you won\'t raise") push him to call or raise. Reverse psychology works on him, and telling him to fold makes him want to do the opposite. Flattery also works: if the human frames folding as what a smart, big-time player would do ("a pro like you knows when to lay it down"), he may fold to look wise. He cannot stand looking weak.',
   },
   nate: {
     id: 'nate',
