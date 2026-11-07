@@ -103,6 +103,13 @@ See `docs/ARCHITECTURE.md` for the full picture. Quick map:
   flag is boolean-only). Verified: game loads via IP and MagicDNS name, Wi-Fi address refused.
   This machine: `main-pc.tail4a2f01.ts.net` / `100.84.41.20`.
 
+- 2026-11-07: Bots wise up. Player shoving every hand made bots fold (they compared their hand
+  against random cards from everyone still in). Now: range-aware odds vs the bettor
+  (`estimateWinChanceVsRanges`, Chen-score ranges), `PlayerHistory` (decayed stats, cards
+  revealed to bots after every round, bluff detection on chat claims, 3 notes per bot, saved per
+  name in localStorage), compact profile in prompts (~1300 tokens/call max). Sim test: call rate
+  vs a constant shover goes 25% -> 45%, free blind steals < 35%.
+
 ## Ideas / next steps
 
 - Live-test a few real rounds with Gemini (chat path not yet exercised live; decide path is).

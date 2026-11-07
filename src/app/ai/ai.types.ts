@@ -1,3 +1,4 @@
+import { HumanProfile } from '../game/player-history';
 import { Street } from '../poker/engine';
 
 /** What a bot is allowed to know about the table. Sent to the server to build prompts. */
@@ -15,8 +16,21 @@ export interface BotView {
   streetBet: number;
   currentBet: number;
   toCall: number;
-  /** Monte Carlo estimate, 0–1. */
+  /** Monte Carlo estimate vs everyone still in, as if they held random cards. 0 to 1. */
   winChance: number;
+  /**
+   * Set when there's a bet to call: who made it, how wide their betting range looks from past
+   * play, and the win chance against that range (plus anyone who already called). This is the
+   * number to compare with the pot odds.
+   */
+  facingBet: {
+    bettor: string;
+    isHuman: boolean;
+    allIn: boolean;
+    /** Share of hands they bet like this with, as a percentage. */
+    rangePct: number;
+    winChance: number;
+  } | null;
   opponentsInHand: number;
   legal: {
     canCheck: boolean;
@@ -36,8 +50,10 @@ export interface BotView {
   }[];
   /** This round's public actions and table talk, oldest first. */
   actionLog: string[];
-  /** One-line summaries of the last few rounds. */
+  /** One-line summaries of the last couple of rounds. */
   recentRounds: string[];
+  /** What this bot remembers about the human, already compacted (see player-history.ts). */
+  profile: HumanProfile;
 }
 
 export interface ChatTurn {

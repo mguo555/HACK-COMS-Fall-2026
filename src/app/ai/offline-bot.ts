@@ -12,8 +12,10 @@ export function offlineDecision(
 ): BotDecision {
   const { aggression, looseness } = persona.offline;
   const { legal, toCall, pot, blinds } = view;
-  // Loose players overrate their hands; tight ones underrate them.
-  const strength = view.winChance + (looseness - 0.5) * 0.12;
+  // Facing a bet, judge the hand against the bettor's likely range (wide if they bet all the
+  // time). Loose players overrate their hands; tight ones underrate them.
+  const base = view.facingBet?.winChance ?? view.winChance;
+  const strength = base + (looseness - 0.5) * 0.12;
   const potOdds = toCall > 0 ? toCall / (pot + toCall) : 0;
 
   const wantsValueRaise = strength > 0.62 - aggression * 0.1;

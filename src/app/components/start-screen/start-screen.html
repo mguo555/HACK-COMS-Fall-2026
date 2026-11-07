@@ -20,6 +20,9 @@
       <li>
         After each round you can read what every player was thinking, and whether you got to them.
       </li>
+      <li>
+        After each round the bots see everyone's cards, yours included, and remember how you play.
+      </li>
       <li>Last player with chips wins.</li>
     </ol>
 
@@ -37,6 +40,16 @@
         <button class="btn btn-primary" type="submit">Deal me in</button>
       </div>
     </form>
+
+    @if (remembered() > 0) {
+      <p class="memory muted">
+        The bots remember {{ name().trim() || 'Player' }} from {{ remembered() }} earlier
+        {{ remembered() === 1 ? 'round' : 'rounds' }}.
+        <button class="btn btn-sm btn-ghost" type="button" (click)="forget()">
+          Make them forget
+        </button>
+      </p>
+    }
 
     <p class="status">
       @switch (ai.status().state) {

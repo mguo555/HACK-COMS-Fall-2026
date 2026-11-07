@@ -72,6 +72,15 @@ input {
   min-height: 44px;
 }
 
+.memory {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
 .status {
   display: flex;
   flex-wrap: wrap;

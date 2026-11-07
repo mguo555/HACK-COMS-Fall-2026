@@ -6,6 +6,7 @@ import { cardLabel } from '../poker/cards';
 import { LegalActions, PlayerAction, PokerEngine, Street, TableState } from '../poker/engine';
 import { buildBotView, toLegalAction } from './bot-view';
 import { GAME_CONFIG } from './game.config';
+import { PlayerHistory, describeHolding, loadHistory, saveHistory } from './player-history';
 
 export const HUMAN_ID = 'you';
 
@@ -50,6 +51,8 @@ export class GameService {
   private botLoopGameId = -1;
   private nextId = 1;
   private readonly pendingReplies = new Map<string, Promise<void>>();
+  /** What the bots remember about everyone's play; saved per player name between games. */
+  private history = new PlayerHistory();
   private readonly bubbleTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   readonly phase = signal<'intro' | 'playing'>('intro');
@@ -93,6 +96,7 @@ export class GameService {
   async startGame(name: string): Promise<void> {
     const id = ++this.gameId;
     this.humanName.set(name.trim().slice(0, 24) || 'Player');
+    this.history = new PlayerHistory(loadHistory(this.humanName()));
     this.engine = new PokerEngine(
       [
         { id: HUMAN_ID, name: this.humanName(), isHuman: true },
@@ -121,6 +125,7 @@ export class GameService {
     const engine = this.engine;
     if (!engine || !engine.state.handOver || engine.isGameOver()) return;
     engine.startHand();
+    this.history.startRound(engine.state.players.filter((p) => !p.busted).map((p) => p.id));
     this.clearBubbles();
     this.sync();
     void this.runBots();
@@ -139,7 +144,9 @@ export class GameService {
   act(action: PlayerAction): void {
     const engine = this.engine;
     if (!engine || !this.isHumanTurn()) return;
+    const legal = engine.legalActions();
     engine.act(HUMAN_ID, action);
+    this.history.recordAction(HUMAN_ID, action, legal);
     this.sync();
     if (engine.state.handOver) this.recordRound();
     else void this.runBots();
@@ -193,12 +200,13 @@ export class GameService {
       pending: true,
     };
     this.chat.update((c) => [...c, sentMessage, placeholder]);
+    this.history.recordMessage(botId, text);
 
     const task = this.ai
       .reply({
         personaId: botId,
         humanName: this.humanName(),
-        view: buildBotView(engine, botId, this.recentRounds()),
+        view: buildBotView(engine, botId, this.recentRounds(), this.history, HUMAN_ID),
         conversation,
         message: text,
       })
@@ -255,7 +263,7 @@ export class GameService {
       {
         personaId: botId,
         humanName: this.humanName(),
-        view: buildBotView(engine, botId, this.recentRounds()),
+        view: buildBotView(engine, botId, this.recentRounds(), this.history, HUMAN_ID),
         conversation,
       },
       useAi,
@@ -273,6 +281,7 @@ export class GameService {
       this.showBubble(botId, talk);
     }
     engine.act(botId, action);
+    this.history.recordAction(botId, action, legal);
 
     this.thoughts.update((list) => [
       ...list,
@@ -292,15 +301,22 @@ export class GameService {
     if (engine.state.handOver) this.recordRound();
   }
 
-  /** The private chat with one bot, oldest first, as sent to the server. */
+  /**
+   * The private chat with one bot, oldest first, as sent to the server. Only this round and the
+   * last one go word for word; older rounds reach the bot as compact notes in its profile.
+   */
   private conversationFor(botId: string): ChatTurn[] {
+    const round = this.engine?.state.round ?? 0;
     return this.chat()
-      .filter((m) => m.botId === botId && !m.pending)
-      .slice(-12)
+      .filter((m) => m.botId === botId && !m.pending && m.round >= round - 1)
+      .slice(-6)
       .map((m) => ({ from: m.from, text: m.text, round: m.round }));
   }
 
-  /** Saves a one-line summary of the finished round; bots see the last few. */
+  /**
+   * End of round: saves a one-line summary (bots see the last two), then reveals every hand to
+   * the bots' memory and compacts it (see player-history.ts) and saves it for next game.
+   */
   private recordRound(): void {
     const t = this.engine!.state;
     const outcome = t.outcome;
@@ -313,7 +329,18 @@ export class GameService {
       });
       line += `. ${shown.join('; ')}`;
     }
+    const human = t.players.find((p) => p.isHuman);
+    if (human && human.hole.length === 2 && !outcome.hands[human.id]) {
+      line += `. Revealed after the round: ${human.name} had ${describeHolding(human.hole, t.board)}`;
+    }
     this.recentRounds.update((r) => [...r.slice(-5), line]);
+
+    const botMoves: Record<string, string[]> = {};
+    for (const thought of this.thoughts()) {
+      if (thought.round === t.round) (botMoves[thought.botId] ??= []).push(thought.action);
+    }
+    this.history.endRound(t, HUMAN_ID, botMoves);
+    saveHistory(this.humanName(), this.history.toJSON());
   }
 
   private allowanceKey(botId: string, t: TableState): string {

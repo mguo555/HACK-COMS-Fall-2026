@@ -42,6 +42,12 @@ h2 {
   font-weight: 700;
 }
 
+.reveal {
+  margin: 4px 0 0;
+  color: var(--faint);
+  font-size: 12px;
+}
+
 .actions {
   display: flex;
   gap: 8px;
