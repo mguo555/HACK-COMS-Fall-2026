@@ -4,19 +4,19 @@ import { startingHandPercentile } from '../poker/equity';
 import { evaluateHand } from '../poker/evaluator';
 
 /**
- * What the bots remember about how everyone plays, and about what the human told each of them.
+ * What the bots remember about how everyone plays, and about what each human told each bot.
  *
  * After every round all hole cards are revealed to the bots (not only at showdown), so they
- * learn what each player raises and shoves with, and whether the human's claims were bluffs.
+ * learn what each player raises and shoves with, and whether a human's claims were bluffs.
  *
  * Compaction keeps this small however long the game runs, with no extra AI calls:
  * - Betting stats decay by DECAY each round, so recent play counts most (roughly the last 20
  *   rounds matter).
  * - The hands behind each player's raises are kept as starting-hand percentiles, last
  *   MAX_SAMPLES only.
- * - The human's messages to a bot are folded into counters (big-hand claims, how many were
+ * - A human's messages to a bot are folded into counters (big-hand claims, how many were
  *   bluffs) plus one short note per round, last MAX_NOTES only.
- * A bot's prompt gets a few lines, not the whole chat log.
+ * A bot's prompt gets a few lines per human, not the whole chat log.
  */
 
 /** Per-player betting habits. Counts decay each round, so they can be fractional. */
@@ -37,7 +37,7 @@ export interface RaiseSample {
   shove: boolean;
 }
 
-/** One bot's memory of the human's messages to it. Counters are lifetime totals. */
+/** One bot's memory of one human's messages. Counters are lifetime totals. */
 export interface BotMemory {
   messages: number;
   /** Messages that claimed a strong hand ("I have aces", "the nuts"...). */
@@ -48,19 +48,23 @@ export interface BotMemory {
   claimsBackedUp: number;
   /** Newest last, at most MAX_NOTES. */
   notes: string[];
+  /** How the bot feels about this human, -1 (can't stand them) to 1 (adores them). */
+  feeling: number;
 }
 
-export interface HistoryData {
-  version: 2;
-  /** Rounds observed in total (not decayed). */
+/** Everything remembered about one human, for saving between games. */
+export interface SavedPlayer {
+  version: 3;
   rounds: number;
-  stats: Record<string, PlayerStats>;
-  samples: Record<string, RaiseSample[]>;
+  stats: PlayerStats;
+  samples: RaiseSample[];
+  /** By bot (persona) id. */
   memories: Record<string, BotMemory>;
 }
 
-/** The compact profile of the human sent with each bot request. */
+/** The compact profile of a human sent with each bot request. */
 export interface HumanProfile {
+  name: string;
   rounds: number;
   /** Weighted number of recent rounds the percentages are based on. */
   recentRounds: number;
@@ -74,6 +78,8 @@ export interface HumanProfile {
   bluffsCaught: number;
   claimsBackedUp: number;
   notes: string[];
+  /** How this bot feels about them, -1 to 1. */
+  feeling: number;
 }
 
 export type HandStrength = 'strong' | 'medium' | 'weak';
@@ -102,37 +108,38 @@ const emptyMemory = (): BotMemory => ({
   bluffsCaught: 0,
   claimsBackedUp: 0,
   notes: [],
+  feeling: 0,
 });
 
 type Flag = 'played' | 'raised' | 'shoved';
+const memoryKey = (botId: string, humanId: string) => `${botId}|${humanId}`;
 
 export class PlayerHistory {
-  private readonly data: HistoryData;
+  private rounds = 0;
+  private readonly roundsByPlayer = new Map<string, number>();
+  private readonly statsById = new Map<string, PlayerStats>();
+  private readonly samplesById = new Map<string, RaiseSample[]>();
+  private readonly memories = new Map<string, BotMemory>();
   /** Which stats each player already earned this round (each counts once per round). */
   private readonly flags = new Map<string, Set<Flag>>();
+  /** This round's messages, by bot|human. */
   private readonly messages = new Map<string, string[]>();
 
-  constructor(saved?: HistoryData | null) {
-    this.data =
-      saved?.version === 2 && saved.stats && saved.samples && saved.memories
-        ? structuredClone(saved)
-        : { version: 2, rounds: 0, stats: {}, samples: {}, memories: {} };
-  }
-
-  get rounds(): number {
-    return this.data.rounds;
-  }
-
-  toJSON(): HistoryData {
-    return this.data;
+  get totalRounds(): number {
+    return this.rounds;
   }
 
   stats(playerId: string): PlayerStats {
-    return (this.data.stats[playerId] ??= emptyStats());
+    let s = this.statsById.get(playerId);
+    if (!s) this.statsById.set(playerId, (s = emptyStats()));
+    return s;
   }
 
-  memory(botId: string): BotMemory {
-    return (this.data.memories[botId] ??= emptyMemory());
+  memory(botId: string, humanId: string): BotMemory {
+    const key = memoryKey(botId, humanId);
+    let m = this.memories.get(key);
+    if (!m) this.memories.set(key, (m = emptyMemory()));
+    return m;
   }
 
   startRound(playerIds: string[]): void {
@@ -151,33 +158,37 @@ export class PlayerHistory {
     }
   }
 
-  recordMessage(botId: string, text: string): void {
-    const list = this.messages.get(botId) ?? [];
+  recordMessage(botId: string, humanId: string, text: string): void {
+    const key = memoryKey(botId, humanId);
+    const list = this.messages.get(key) ?? [];
     list.push(text);
-    this.messages.set(botId, list);
+    this.messages.set(key, list);
   }
 
   /**
    * The reveal and compaction step, run once when a round ends. Every player's hole cards are
    * looked at here. `botMoves` lists what each bot did this round (e.g. "Called 40").
    */
-  endRound(table: TableState, humanId: string, botMoves: Record<string, string[]>): void {
-    this.data.rounds++;
+  endRound(table: TableState, humanIds: string[], botMoves: Record<string, string[]>): void {
+    this.rounds++;
+    for (const id of humanIds) this.roundsByPlayer.set(id, (this.roundsByPlayer.get(id) ?? 0) + 1);
 
     for (const p of table.players) {
       if (p.hole.length !== 2 || !this.flags.get(p.id)?.has('raised')) continue;
-      const samples = (this.data.samples[p.id] ??= []);
+      const samples = this.samplesById.get(p.id) ?? [];
       samples.push({
         pct: round3(startingHandPercentile(p.hole[0], p.hole[1])),
         shove: this.flags.get(p.id)!.has('shoved'),
       });
       if (samples.length > MAX_SAMPLES) samples.splice(0, samples.length - MAX_SAMPLES);
+      this.samplesById.set(p.id, samples);
       if (handStrength(p.hole, table.board) === 'weak') this.stats(p.id).weakRaises++;
     }
 
-    const human = table.players.find((p) => p.id === humanId);
-    for (const [botId, said] of this.messages) {
-      const m = this.memory(botId);
+    for (const [key, said] of this.messages) {
+      const [botId, humanId] = key.split('|');
+      const human = table.players.find((p) => p.id === humanId);
+      const m = this.memory(botId, humanId);
       m.messages += said.length;
       let verdict = '';
       if (human && human.hole.length === 2 && said.some((text) => STRONG_CLAIM.test(text))) {
@@ -185,15 +196,18 @@ export class PlayerHistory {
         const strength = handStrength(human.hole, table.board);
         if (strength === 'weak') {
           m.bluffsCaught++;
+          m.feeling = clampFeeling(m.feeling - 0.35); // being lied to stings
           verdict = ' It was a bluff.';
         } else if (strength === 'strong') {
           m.claimsBackedUp++;
+          m.feeling = clampFeeling(m.feeling + 0.15);
           verdict = ' It was true.';
         }
       }
       const quote = clip(said.join(' / '), NOTE_QUOTE_CHARS);
       const moves = botMoves[botId]?.join(', ') || 'no move';
-      const had = human ? describeHolding(human.hole, table.board) : 'unknown cards';
+      const had =
+        human?.hole.length === 2 ? describeHolding(human.hole, table.board) : 'unknown cards';
       m.notes.push(
         `Round ${table.round}: they said "${quote}". You: ${moves}. They had ${had}.${verdict}`,
       );
@@ -201,9 +215,15 @@ export class PlayerHistory {
     }
 
     // Older rounds fade, so a player who changes style is re-read within ~20 rounds.
-    for (const s of Object.values(this.data.stats)) {
+    for (const s of this.statsById.values()) {
       for (const key of Object.keys(s) as (keyof PlayerStats)[]) s[key] *= DECAY;
     }
+  }
+
+  /** Nudges how a bot feels about a human (e.g. after a kind or rude message). */
+  adjustFeeling(botId: string, humanId: string, delta: number): void {
+    const m = this.memory(botId, humanId);
+    m.feeling = clampFeeling(m.feeling + delta);
   }
 
   /**
@@ -217,7 +237,7 @@ export class PlayerHistory {
     const prior = shove ? 0.1 : 0.25;
     let range = (count + prior * PRIOR_HANDS) / (s.hands + PRIOR_HANDS);
 
-    const all = this.data.samples[playerId] ?? [];
+    const all = this.samplesById.get(playerId) ?? [];
     const shoves = all.filter((x) => x.shove);
     const seen = shove && shoves.length >= MIN_SAMPLES ? shoves : all;
     if (seen.length >= MIN_SAMPLES) {
@@ -228,13 +248,14 @@ export class PlayerHistory {
     return Math.min(1, Math.max(0.05, range));
   }
 
-  /** Compact profile of the human for one bot's prompt. Its size is bounded. */
-  profileFor(botId: string, humanId: string): HumanProfile {
+  /** Compact profile of one human for one bot's prompt. Its size is bounded. */
+  profileFor(botId: string, humanId: string, name: string): HumanProfile {
     const s = this.stats(humanId);
     const pct = (n: number, of = s.hands) => (of > 0 ? Math.round((n / of) * 100) : 0);
-    const m = this.memory(botId);
+    const m = this.memory(botId, humanId);
     return {
-      rounds: this.data.rounds,
+      name,
+      rounds: this.roundsByPlayer.get(humanId) ?? 0,
       recentRounds: Math.round(s.hands),
       playedPct: pct(s.played),
       raisedPct: pct(s.raised),
@@ -245,7 +266,39 @@ export class PlayerHistory {
       bluffsCaught: m.bluffsCaught,
       claimsBackedUp: m.claimsBackedUp,
       notes: [...m.notes],
+      feeling: Math.round(m.feeling * 100) / 100,
     };
+  }
+
+  /** Everything about one human, for saving between games. */
+  exportPlayer(humanId: string): SavedPlayer {
+    const memories: Record<string, BotMemory> = {};
+    for (const [key, m] of this.memories) {
+      const [botId, id] = key.split('|');
+      if (id === humanId) memories[botId] = structuredClone(m);
+    }
+    return {
+      version: 3,
+      rounds: this.roundsByPlayer.get(humanId) ?? 0,
+      stats: { ...this.stats(humanId) },
+      samples: [...(this.samplesById.get(humanId) ?? [])],
+      memories,
+    };
+  }
+
+  /** Restores a saved human under `humanId` (their id at this table). */
+  importPlayer(humanId: string, saved: SavedPlayer | null | undefined): void {
+    if (!saved || saved.version !== 3) return;
+    this.roundsByPlayer.set(humanId, saved.rounds);
+    this.statsById.set(humanId, { ...emptyStats(), ...saved.stats });
+    this.samplesById.set(humanId, [...saved.samples].slice(-MAX_SAMPLES));
+    for (const [botId, m] of Object.entries(saved.memories ?? {})) {
+      this.memories.set(memoryKey(botId, humanId), {
+        ...emptyMemory(),
+        ...m,
+        notes: [...(m.notes ?? [])].slice(-MAX_NOTES),
+      });
+    }
   }
 
   private flag(playerId: string, flag: Flag): void {
@@ -274,6 +327,19 @@ export function describeHolding(hole: readonly Card[], board: readonly Card[]): 
   return `${cards} (a ${handStrength(hole, board)} starting hand)`;
 }
 
+/** How a feeling value reads in words. */
+export function feelingLabel(feeling: number): 'adores' | 'likes' | 'neutral' | 'wary' | 'grudge' {
+  if (feeling >= 0.6) return 'adores';
+  if (feeling >= 0.25) return 'likes';
+  if (feeling <= -0.6) return 'grudge';
+  if (feeling <= -0.25) return 'wary';
+  return 'neutral';
+}
+
+function clampFeeling(n: number): number {
+  return Math.max(-1, Math.min(1, n));
+}
+
 function clip(text: string, max: number): string {
   const flat = text.replace(/\s+/g, ' ').trim();
   return flat.length > max ? flat.slice(0, max - 1).trimEnd() + '…' : flat;
@@ -281,34 +347,4 @@ function clip(text: string, max: number): string {
 
 function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
-}
-
-// --- Saving between games (browser only; every call tolerates missing storage) ---------------
-
-const storageKey = (name: string) =>
-  `willaibeatus.history.v2.${name.trim().toLowerCase() || 'player'}`;
-
-export function loadHistory(name: string): HistoryData | null {
-  try {
-    const raw = localStorage.getItem(storageKey(name));
-    return raw ? (JSON.parse(raw) as HistoryData) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function saveHistory(name: string, data: HistoryData): void {
-  try {
-    localStorage.setItem(storageKey(name), JSON.stringify(data));
-  } catch {
-    // Storage full or blocked: memory just won't carry over to the next game.
-  }
-}
-
-export function forgetHistory(name: string): void {
-  try {
-    localStorage.removeItem(storageKey(name));
-  } catch {
-    // Nothing to do.
-  }
 }

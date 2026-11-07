@@ -53,6 +53,44 @@ h2 {
   gap: 8px;
 }
 
+.summary {
+  margin: 4px 0 0;
+  color: var(--text);
+}
+
+.wait {
+  align-self: center;
+  font-size: 13px;
+}
+
+.tag.big {
+  background: rgb(60 207 142 / 18%);
+  color: var(--success);
+}
+
+.stats {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.stats th,
+.stats td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.stats th {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.stats .human td {
+  color: var(--gold);
+}
+
 .thoughts {
   margin-top: 14px;
   padding-top: 12px;

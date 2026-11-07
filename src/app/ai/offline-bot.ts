@@ -1,5 +1,5 @@
 import { BotDecision, BotView } from './ai.types';
-import { PersonaInfo } from './personas';
+import type { OfflineStyle } from '../shared/personas';
 
 /**
  * Simple stand-in used when Gemini isn't used: compares the win chance to the pot odds,
@@ -7,10 +7,10 @@ import { PersonaInfo } from './personas';
  */
 export function offlineDecision(
   view: BotView,
-  persona: PersonaInfo,
+  style: OfflineStyle,
   random = Math.random,
 ): BotDecision {
-  const { aggression, looseness } = persona.offline;
+  const { aggression, looseness } = style;
   const { legal, toCall, pot, blinds } = view;
   // Facing a bet, judge the hand against the bettor's likely range (wide if they bet all the
   // time). Loose players overrate their hands; tight ones underrate them.
@@ -43,11 +43,11 @@ export function offlineDecision(
   return decision('fold', 0, 'Not worth the chips.');
 }
 
-export function offlineReply(persona: PersonaInfo, random = Math.random): string {
-  const replies = persona.offline.replies;
+export function offlineReply(style: OfflineStyle, random = Math.random): string {
+  const replies = style.replies;
   return replies[Math.floor(random() * replies.length)];
 }
 
 function decision(action: BotDecision['action'], raiseTo: number, thought: string): BotDecision {
-  return { action, raiseTo, tableTalk: '', thought, offline: true };
+  return { action, raiseTo, tableTalk: '', thought, influence: null, offline: true };
 }

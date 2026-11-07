@@ -23,7 +23,7 @@ header p {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
   gap: 6px;
 }
 
@@ -55,6 +55,25 @@ header p {
   color: var(--accent);
   font-size: 11px;
   font-weight: 800;
+}
+
+.avatar {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
 }
 
 .who {
@@ -132,6 +151,35 @@ header p {
   margin-left: auto;
   border-radius: 12px 12px 4px;
   background: #2b2440;
+}
+
+.feel {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sway {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.meter {
+  width: 48px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
 }
 
 .canned {

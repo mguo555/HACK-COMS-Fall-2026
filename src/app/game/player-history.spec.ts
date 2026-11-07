@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { offlineDecision } from '../ai/offline-bot';
-import { PERSONAS } from '../ai/personas';
+import { CHARACTERS } from '../shared/personas';
 import { parseCards, seededRng } from '../poker/cards';
 import { LegalActions, PokerEngine, TableState } from '../poker/engine';
 import { buildBotView, toLegalAction } from './bot-view';
-import { PlayerHistory } from './player-history';
+import { PlayerHistory, feelingLabel } from './player-history';
 
 const legal = (maxRaiseTo = 1000): LegalActions => ({
   canFold: true,
@@ -36,7 +36,7 @@ describe('PlayerHistory', () => {
     for (let r = 1; r <= 10; r++) {
       h.startRound(['you', 'rosie']);
       h.recordAction('you', { type: 'raise', to: 1000 }, legal());
-      h.endRound(table(r, '7c 2d'), 'you', {});
+      h.endRound(table(r, '7c 2d'), ['you'], {});
     }
     expect(first).toBeLessThan(0.2);
     expect(h.bettingRange('you', true)).toBeGreaterThan(0.6);
@@ -47,7 +47,7 @@ describe('PlayerHistory', () => {
     for (let r = 1; r <= 20; r++) {
       h.startRound(['you']);
       if (r % 5 === 0) h.recordAction('you', { type: 'raise', to: 60 }, legal());
-      h.endRound(table(r, r % 2 ? '7c 2d' : '8s 3h'), 'you', {});
+      h.endRound(table(r, r % 2 ? '7c 2d' : '8s 3h'), ['you'], {});
     }
     // Raises only 20% of rounds, but always with trash, so the range is near "any two cards".
     expect(h.bettingRange('you', false)).toBeGreaterThan(0.7);
@@ -58,7 +58,7 @@ describe('PlayerHistory', () => {
     for (let r = 1; r <= 20; r++) {
       h.startRound(['you']);
       if (r % 5 === 0) h.recordAction('you', { type: 'raise', to: 60 }, legal());
-      h.endRound(table(r, 'As Ah'), 'you', {});
+      h.endRound(table(r, 'As Ah'), ['you'], {});
     }
     expect(h.bettingRange('you', false)).toBeLessThan(0.35);
   });
@@ -67,10 +67,10 @@ describe('PlayerHistory', () => {
     const h = new PlayerHistory();
     for (let r = 1; r <= 5; r++) {
       h.startRound(['you', 'rosie']);
-      h.recordMessage('rosie', 'I have pocket aces, please fold');
-      h.endRound(table(r, r === 5 ? 'Ac Ad' : '7c 2d'), 'you', { rosie: ['Folded'] });
+      h.recordMessage('rosie', 'you', 'I have pocket aces, please fold');
+      h.endRound(table(r, r === 5 ? 'Ac Ad' : '7c 2d'), ['you'], { rosie: ['Folded'] });
     }
-    const p = h.profileFor('rosie', 'you');
+    const p = h.profileFor('rosie', 'you', 'Sam');
     expect(p.messages).toBe(5);
     expect(p.claims).toBe(5);
     expect(p.bluffsCaught).toBe(4);
@@ -78,16 +78,34 @@ describe('PlayerHistory', () => {
     expect(p.notes).toHaveLength(3);
     expect(p.notes[2]).toContain('Round 5');
     expect(p.notes[1]).toContain('It was a bluff.');
+    // Being lied to four times leaves a grudge.
+    expect(feelingLabel(p.feeling)).toBe('grudge');
   });
 
-  it('round-trips through JSON (for saving between games)', () => {
+  it('keeps separate memories per human', () => {
+    const h = new PlayerHistory();
+    h.startRound(['you', 'rosie']);
+    h.recordMessage('rosie', 'you', 'I have the nuts');
+    h.endRound(table(1, '7c 2d'), ['you', 'alex'], {});
+    h.adjustFeeling('rosie', 'alex', 0.4);
+    expect(h.profileFor('rosie', 'you', 'Sam').bluffsCaught).toBe(1);
+    expect(h.profileFor('rosie', 'alex', 'Alex').messages).toBe(0);
+    expect(feelingLabel(h.profileFor('rosie', 'alex', 'Alex').feeling)).toBe('likes');
+  });
+
+  it('saves and restores one human (for the next game)', () => {
     const h = new PlayerHistory();
     h.startRound(['you']);
     h.recordAction('you', { type: 'call' }, legal());
-    h.endRound(table(1, '9c 9d'), 'you', {});
-    const restored = new PlayerHistory(JSON.parse(JSON.stringify(h.toJSON())));
-    expect(restored.rounds).toBe(1);
-    expect(restored.profileFor('rosie', 'you').playedPct).toBe(100);
+    h.recordMessage('rosie', 'you', 'hello');
+    h.endRound(table(1, '9c 9d'), ['you'], {});
+    const saved = JSON.parse(JSON.stringify(h.exportPlayer('you')));
+    const next = new PlayerHistory();
+    next.importPlayer('h-1-abc', saved);
+    const p = next.profileFor('rosie', 'h-1-abc', 'Sam');
+    expect(p.rounds).toBe(1);
+    expect(p.playedPct).toBe(100);
+    expect(p.messages).toBe(1);
   });
 });
 
@@ -99,7 +117,7 @@ describe('bots against a player who goes all-in every hand', () => {
     const engine = new PokerEngine(
       [
         { id: 'you', name: 'Sam', isHuman: true },
-        ...PERSONAS.map((p) => ({ id: p.id, name: p.name, isHuman: false })),
+        ...CHARACTERS.slice(0, 4).map((p) => ({ id: p.id, name: p.name, isHuman: false })),
       ],
       { random: seededRng(7) },
     );
@@ -126,9 +144,9 @@ describe('bots against a player who goes all-in every hand', () => {
           history.recordAction(p.id, action, lg);
           continue;
         }
-        const view = buildBotView(engine, p.id, [], history, 'you');
-        const persona = PERSONAS.find((x) => x.id === p.id)!;
-        const action = toLegalAction(offlineDecision(view, persona), lg);
+        const view = buildBotView(engine, p.id, [], history);
+        const persona = CHARACTERS.find((x) => x.id === p.id)!;
+        const action = toLegalAction(offlineDecision(view, persona.offline), lg);
         if (view.facingBet?.isHuman && view.facingBet.allIn) {
           const bucket = round <= 2 ? early : late;
           bucket.faced++;
@@ -137,7 +155,7 @@ describe('bots against a player who goes all-in every hand', () => {
         engine.act(p.id, action);
         history.recordAction(p.id, action, lg);
       }
-      history.endRound(engine.state, 'you', {});
+      history.endRound(engine.state, ['you'], {});
       if (round > 2) {
         lateRounds++;
         const o = engine.state.outcome!;

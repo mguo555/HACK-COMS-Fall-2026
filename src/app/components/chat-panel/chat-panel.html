@@ -1,83 +1,115 @@
 <section class="panel chat">
   <header>
-    <h2>Table talk</h2>
+    <h2>Whisper</h2>
     <p class="muted">
-      One private message to each player {{ perStreet ? 'per betting round' : 'per round' }}. Talk
-      them into folding, or bait them into raising.
+      One private message to each player {{ perStreet ? 'per betting round' : 'per round' }}, AI or
+      human. Only they see it.
     </p>
   </header>
 
-  <div class="tabs" role="tablist" aria-label="Choose a player to message">
-    @for (p of personas; track p.id) {
-      @let s = status(p);
+  <div class="tabs" role="tablist" aria-label="Choose a player to whisper to">
+    @for (c of contacts(); track c.player.id) {
+      @let s = status(c);
+      @let n = unread(c.player.id);
       <button
         role="tab"
         class="tab"
-        [class.active]="p.id === selectedId()"
-        [attr.aria-selected]="p.id === selectedId()"
-        [style.--accent]="p.color"
-        (click)="select(p.id)"
+        [class.active]="c.player.id === activeId()"
+        [attr.aria-selected]="c.player.id === activeId()"
+        [attr.aria-label]="c.player.name + (n ? ', ' + n + ' unread' : '')"
+        [style.--accent]="c.color"
+        (click)="selectedId.set(c.player.id)"
       >
-        <span class="avatar">{{ p.initials }}</span>
-        <span class="who">{{ p.name }}</span>
+        <span class="avatar">
+          {{ c.initials }}
+          @if (n) {
+            <span class="badge">{{ n }}</span>
+          }
+        </span>
+        <span class="who">{{ c.player.name }}</span>
         <span class="left" [attr.data-tone]="s.tone">{{ s.text }}</span>
       </button>
     }
   </div>
 
-  <div class="profile" [style.--accent]="selected().color">
-    <strong>{{ selected().fullName }}</strong>
-    <span class="hint">{{ selected().weakSpot }}</span>
-  </div>
-
-  <div class="thread" aria-live="polite">
-    <div>
-      @for (item of thread(); track item.round) {
-        <div class="divider">
-          <span>Round {{ item.round }}</span>
-        </div>
-        @for (m of item.messages; track m.id) {
-          <div class="msg" [class.mine]="m.from === 'human'" [style.--accent]="selected().color">
-            @if (m.pending) {
-              <span class="typing"><i></i><i></i><i></i></span>
-            } @else {
-              {{ m.text }}
-              @if (m.offline) {
-                <span class="canned">canned reply</span>
-              }
-            }
-          </div>
-        }
-      } @empty {
-        <p class="empty muted">
-          Nothing said yet. You get one message to {{ selected().name }} this round, so pick your
-          angle.
-        </p>
+  @if (selected(); as sel) {
+    <div class="profile" [style.--accent]="sel.color">
+      @if (sel.isHuman) {
+        <strong>{{ sel.player.name }}</strong>
+        <span class="hint">Another human at the table. No AI sees what you two say.</span>
+      } @else {
+        <strong>{{ sel.persona?.fullName }}</strong>
+        <span class="hint">{{ sel.persona?.weakSpot }}</span>
+        <span class="feel">
+          {{ feeling() }}
+          @if (mood()) {
+            ·
+            {{
+              mood() === 'on a heater' ? 'On a heater' : mood() === 'tilted' ? 'Tilted' : 'Shaken'
+            }}
+          }
+        </span>
       }
     </div>
-  </div>
 
-  <form class="composer" (submit)="$event.preventDefault(); send(box)">
-    <textarea
-      #box
-      rows="2"
-      [attr.aria-label]="'Message to ' + selected().name"
-      [placeholder]="blocker() ?? 'Message ' + selected().name + '…'"
-      [disabled]="!!blocker()"
-      [value]="draft()"
-      [maxLength]="maxLength"
-      (input)="setDraft($any($event.target).value)"
-      (keydown)="onKeydown($event, box)"
-    ></textarea>
-    <div class="row">
-      <span class="count muted">{{ draft().length }}/{{ maxLength }}</span>
-      <button
-        class="btn btn-primary btn-sm"
-        type="submit"
-        [disabled]="!!blocker() || !draft().trim()"
-      >
-        Send
-      </button>
+    <div class="thread" aria-live="polite">
+      <div>
+        @for (item of thread(); track item.round) {
+          <div class="divider">
+            <span>Round {{ item.round }}</span>
+          </div>
+          @for (m of item.messages; track m.id) {
+            <div class="msg" [class.mine]="m.mine" [style.--accent]="sel.color">
+              @if (m.pending) {
+                <span class="typing"><i></i><i></i><i></i></span>
+              } @else {
+                {{ m.text }}
+                @if (!m.mine && !sel.isHuman) {
+                  @if (m.sway !== null && m.sway !== undefined) {
+                    <span class="sway">
+                      <span class="meter"><span [style.width.%]="m.sway"></span></span>
+                      Swayed {{ m.sway }}%{{ leaningText(m.leaning) }}
+                    </span>
+                  } @else if (m.offline) {
+                    <span class="canned">canned reply</span>
+                  }
+                }
+              }
+            </div>
+          }
+        } @empty {
+          <p class="empty muted">
+            Nothing said yet. You get one message to {{ sel.player.name }} this round, so pick your
+            angle.
+          </p>
+        }
+      </div>
     </div>
-  </form>
+
+    <form class="composer" (submit)="$event.preventDefault(); send(box)">
+      <textarea
+        #box
+        rows="2"
+        [attr.aria-label]="'Message to ' + sel.player.name"
+        [placeholder]="blocker() ?? 'Message ' + sel.player.name + '…'"
+        [disabled]="!!blocker()"
+        [value]="draft()"
+        [maxLength]="maxLength"
+        (input)="setDraft($any($event.target).value)"
+        (keydown)="onKeydown($event, box)"
+      ></textarea>
+      <div class="row">
+        <span class="count muted">{{ draft().length }}/{{ maxLength }}</span>
+        <button
+          class="btn btn-primary btn-sm"
+          type="submit"
+          [disabled]="!!blocker() || !draft().trim()"
+        >
+          Send
+        </button>
+      </div>
+    </form>
+  } @else {
+    <p class="empty muted">The other players sit down once the game starts.</p>
+  }
 </section>

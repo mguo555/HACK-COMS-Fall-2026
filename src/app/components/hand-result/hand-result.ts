@@ -1,8 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { AiService } from '../../ai/ai.service';
-import { PERSONAS } from '../../ai/personas';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { GAME_CONFIG } from '../../game/game.config';
-import { GameService } from '../../game/game.service';
+import { GameClient } from '../../game/game-client';
+import type { PublicPersona } from '../../shared/personas';
 
 const STREET_NAMES: Partial<Record<string, string>> = {
   preflop: 'Pre-flop',
@@ -11,7 +17,7 @@ const STREET_NAMES: Partial<Record<string, string>> = {
   river: 'River',
 };
 
-/** Shown after each round: who won, and what each bot was thinking. */
+/** Shown after each round (who won, what the AIs were thinking) and when the game ends. */
 @Component({
   selector: 'app-hand-result',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -19,68 +25,87 @@ const STREET_NAMES: Partial<Record<string, string>> = {
   styleUrl: './hand-result.css',
 })
 export class HandResult {
-  protected readonly game = inject(GameService);
-  private readonly ai = inject(AiService);
+  protected readonly client = inject(GameClient);
+  private readonly now = signal(Date.now());
+
+  protected readonly over = computed(() => this.client.state()?.phase === 'over');
 
   protected readonly title = computed(() => {
-    const t = this.game.table();
-    if (!this.game.gameOver()) return `Round ${t?.round ?? ''} result`;
-    return this.game.human()?.busted ? "You're out of chips" : 'You took every chip at the table';
+    const s = this.client.state();
+    if (s?.result) return s.result.winner === 'humans' ? 'The humans win' : 'The AIs win';
+    return `Round ${s?.table?.round ?? ''} result`;
   });
 
   protected readonly winners = computed(() => {
-    const t = this.game.table();
+    const s = this.client.state();
+    const t = s?.table;
     const outcome = t?.outcome;
-    if (!t || !outcome) return [];
+    if (!s || !t || !outcome) return [];
     return outcome.awards.map((a) => {
       const p = t.players.find((x) => x.id === a.playerId)!;
+      const isMe = p.id === s.you.id;
       return {
-        name: p.isHuman ? 'You' : p.name,
-        isHuman: p.isHuman,
+        name: isMe ? 'You' : p.name,
+        isMe,
         amount: a.amount,
         hand: outcome.hands[a.playerId]?.description ?? null,
       };
     });
   });
 
-  /**
-   * Per bot, in seat order: Gemini's reasoning in full, and moves made by the built-in logic
-   * collapsed into one line (its "reasoning" is canned and not worth reading).
-   */
+  /** Gemini's reasoning in full; built-in moves collapsed into one line per AI. */
   protected readonly thoughtsByBot = computed(() => {
-    const thoughts = this.game.roundThoughts();
-    return PERSONAS.map((persona) => {
-      const mine = thoughts.filter((t) => t.botId === persona.id);
-      return {
-        persona,
-        ai: mine
-          .filter((t) => !t.offline)
-          .map((t) => ({ ...t, label: `${STREET_NAMES[t.street] ?? t.street}: ${t.action}` })),
-        builtIn: mine
-          .filter((t) => t.offline)
-          .map((t) => `${STREET_NAMES[t.street] ?? t.street}: ${t.action}`)
-          .join(' · '),
-      };
-    }).filter((group) => group.ai.length > 0 || group.builtIn);
+    const s = this.client.state();
+    if (!s) return [];
+    const ids = [...new Set(s.thoughts.map((t) => t.botId))];
+    return ids
+      .map((id) => {
+        const mine = s.thoughts.filter((t) => t.botId === id);
+        return {
+          id,
+          persona: s.personas[id],
+          ai: mine
+            .filter((t) => !t.offline)
+            .map((t) => ({ ...t, label: `${STREET_NAMES[t.street] ?? t.street}: ${t.action}` })),
+          builtIn: mine
+            .filter((t) => t.offline)
+            .map((t) => `${STREET_NAMES[t.street] ?? t.street}: ${t.action}`)
+            .join(' · '),
+        };
+      })
+      .filter((g): g is typeof g & { persona: PublicPersona } => !!g.persona);
   });
 
-  /** True when no bot used Gemini this round, so the panel can explain why. */
   protected readonly noAiThisRound = computed(
     () =>
-      this.ai.status().state === 'online' &&
+      !!this.client.state()?.ai.enabled &&
       GAME_CONFIG.aiDecisions === 'after-message' &&
       this.thoughtsByBot().every((g) => g.ai.length === 0),
   );
 
-  protected next(): void {
-    this.game.nextRound();
-  }
+  /** "Waiting for Alex", "Next round in 9s", or nothing (single player). */
+  protected readonly readyText = computed(() => {
+    const s = this.client.state();
+    if (!s) return '';
+    const iAmReady = s.ready.includes(s.you.id);
+    const waiting = s.players.filter(
+      (p) => p.connected && !s.ready.includes(p.id) && p.id !== s.you.id,
+    );
+    const secs = s.nextRoundAt ? Math.max(0, Math.ceil((s.nextRoundAt - this.now()) / 1000)) : null;
+    const parts: string[] = [];
+    if (iAmReady && waiting.length)
+      parts.push(`Waiting for ${waiting.map((p) => p.name).join(', ')}`);
+    if (secs !== null) parts.push(`Next round in ${secs}s`);
+    return parts.join('. ');
+  });
 
-  protected playAgain(): void {
-    void this.game.startGame(this.game.humanName());
-  }
+  protected readonly iAmReady = computed(() => {
+    const s = this.client.state();
+    return !!s && s.ready.includes(s.you.id);
+  });
 
-  protected quit(): void {
-    this.game.quitToMenu();
+  constructor() {
+    const timer = setInterval(() => this.now.set(Date.now()), 500);
+    inject(DestroyRef).onDestroy(() => clearInterval(timer));
   }
 }

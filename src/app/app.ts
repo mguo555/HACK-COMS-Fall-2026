@@ -1,21 +1,20 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { AiService } from './ai/ai.service';
 import { ActionBar } from './components/action-bar/action-bar';
 import { ChatPanel } from './components/chat-panel/chat-panel';
 import { GameLog } from './components/game-log/game-log';
 import { HandResult } from './components/hand-result/hand-result';
+import { Lobby } from './components/lobby/lobby';
 import { PokerTable } from './components/poker-table/poker-table';
 import { StartScreen } from './components/start-screen/start-screen';
-import { GameService } from './game/game.service';
+import { GameClient } from './game/game-client';
 
 @Component({
   selector: 'app-root',
-  imports: [ActionBar, ChatPanel, GameLog, HandResult, PokerTable, StartScreen],
+  imports: [ActionBar, ChatPanel, GameLog, HandResult, Lobby, PokerTable, StartScreen],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App {
-  protected readonly game = inject(GameService);
-  protected readonly ai = inject(AiService);
+  protected readonly client = inject(GameClient);
 }

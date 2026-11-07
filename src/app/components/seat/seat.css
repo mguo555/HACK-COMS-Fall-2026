@@ -20,7 +20,7 @@
   min-height: 53px;
 }
 
-:host(.human) .cards {
+:host(.me) .cards {
   min-height: 87px;
 }
 
@@ -101,6 +101,25 @@
   font-size: 13px;
 }
 
+.mood {
+  margin-left: 4px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mood[data-mood='tilted'] {
+  color: var(--danger);
+}
+
+.mood[data-mood='shaken'] {
+  color: var(--info);
+}
+
+.mood[data-mood='on a heater'] {
+  color: var(--gold);
+}
+
 .status {
   min-height: 22px;
 }
@@ -177,17 +196,17 @@
   :host {
     width: 96px;
   }
-  :host(.human) {
+  :host(.me) {
     width: 128px;
   }
-  :host(.human) .cards {
+  :host(.me) .cards {
     min-height: 62px;
   }
   /* Opponents' face-down cards take too much room on a phone; they still show at showdown. */
-  :host(:not(.human):not(.revealed)) .cards {
+  :host(:not(.me):not(.revealed)) .cards {
     display: none;
   }
-  :host(.human) app-playing-card {
+  :host(.me) app-playing-card {
     --w: 44px;
   }
   .avatar {

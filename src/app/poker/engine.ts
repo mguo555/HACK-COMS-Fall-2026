@@ -177,6 +177,30 @@ export class PokerEngine {
     return (human?.busted ?? false) || this.playersInGame().length < 2;
   }
 
+  /** Seats a new player in place of the one at `index`. Only between rounds. */
+  replaceSeat(index: number, seat: SeatConfig, stack: number): void {
+    if (!this.state.handOver) throw new Error('Can only change seats between rounds');
+    this.state.players[index] = {
+      ...seat,
+      stack,
+      hole: [],
+      streetBet: 0,
+      handBet: 0,
+      folded: false,
+      allIn: false,
+      busted: stack <= 0,
+      hasActed: false,
+      lastAction: null,
+    };
+  }
+
+  /** Changes the blinds. Only between rounds. */
+  setBlinds(smallBlind: number, bigBlind: number): void {
+    if (!this.state.handOver) throw new Error('Can only change blinds between rounds');
+    this.state.smallBlind = smallBlind;
+    this.state.bigBlind = bigBlind;
+  }
+
   startHand(): void {
     const s = this.state;
     if (!s.handOver) throw new Error('Hand still in progress');
@@ -308,6 +332,11 @@ export class PokerEngine {
 
     p.hasActed = true;
     this.advance(index);
+  }
+
+  /** Adds an announcement from the game itself to the log ("Lou sits down"). */
+  addNote(text: string): void {
+    this.log('round', text);
   }
 
   /** Adds a line said out loud at the table to the log (bots see it as table talk). */

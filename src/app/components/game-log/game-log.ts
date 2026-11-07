@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { GameService } from '../../game/game.service';
+import { GameClient } from '../../game/game-client';
 
 /** Running list of deals, actions, table talk and results. */
 @Component({
@@ -77,11 +77,11 @@ import { GameService } from '../../game/game.service';
   `,
 })
 export class GameLog {
-  private readonly game = inject(GameService);
+  private readonly client = inject(GameClient);
 
   /** The last few rounds only, to keep the DOM small. */
   protected readonly entries = computed(() => {
-    const t = this.game.table();
+    const t = this.client.table();
     if (!t) return [];
     return t.log.filter((e) => e.round >= t.round - 2);
   });

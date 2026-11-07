@@ -1,24 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { personaById } from '../../ai/personas';
-import { GameService } from '../../game/game.service';
+import { GameClient } from '../../game/game-client';
 import { Card, sameCard } from '../../poker/cards';
-import { Street } from '../../poker/engine';
+import { PlayerState, Street } from '../../poker/engine';
 import { PlayingCard } from '../playing-card/playing-card';
 import { Seat } from '../seat/seat';
-
-/**
- * Seat and bet-chip positions (% of the felt), clockwise from the human at the bottom.
- * Index matches the engine's player order: you, Viktor, Rosie, Big Tony, Nate.
- * `my`/`mby` are the vertical positions on narrow screens, where the table is round and the
- * side seats sit below the board so they don't cover it.
- */
-const POSITIONS = [
-  { x: 50, y: 97, my: 97, bx: 64, by: 80, mbx: 74, mby: 77 },
-  { x: 3, y: 50, my: 76, bx: 21, by: 54, mbx: 18, mby: 64 },
-  { x: 27, y: 4, my: 4, bx: 31, by: 29, mbx: 31, mby: 24 },
-  { x: 73, y: 4, my: 4, bx: 69, by: 29, mbx: 69, mby: 24 },
-  { x: 97, y: 50, my: 76, bx: 79, by: 54, mbx: 82, mby: 64 },
-];
 
 const STREET_LABELS: Record<Street, string> = {
   preflop: 'Pre-flop',
@@ -28,6 +13,20 @@ const STREET_LABELS: Record<Street, string> = {
   showdown: 'Showdown',
 };
 
+interface SeatSpot {
+  player: PlayerState;
+  index: number;
+  /** Seat and bet-chip positions, % of the felt. */
+  x: number;
+  y: number;
+  bx: number;
+  by: number;
+  /** Vertical positions on narrow screens, where side seats would cover the board. */
+  my: number;
+  mby: number;
+  isMe: boolean;
+}
+
 @Component({
   selector: 'app-poker-table',
   imports: [PlayingCard, Seat],
@@ -36,13 +35,48 @@ const STREET_LABELS: Record<Street, string> = {
   styleUrl: './poker-table.css',
 })
 export class PokerTable {
-  protected readonly game = inject(GameService);
-  protected readonly positions = POSITIONS;
+  protected readonly client = inject(GameClient);
   protected readonly slots = [0, 1, 2, 3, 4];
-  protected readonly personaById = personaById;
+
+  /**
+   * Seats spaced evenly around the oval, rotated so you're always at the bottom. Going around
+   * clockwise on screen matches the order of play.
+   */
+  protected readonly spots = computed<SeatSpot[]>(() => {
+    const s = this.client.state();
+    const t = s?.table;
+    if (!s || !t) return [];
+    const n = t.players.length;
+    const mine = Math.max(
+      0,
+      t.players.findIndex((p) => p.id === s.you.id),
+    );
+    return t.players.map((player, index) => {
+      const k = (index - mine + n) % n;
+      const angle = ((90 + (k * 360) / n) * Math.PI) / 180;
+      const x = 50 + 48 * Math.cos(angle);
+      const y = 50 + 47 * Math.sin(angle);
+      const isMe = k === 0;
+      // On a phone the table is round and small: keep seats out of the middle band where the
+      // community cards are, by pushing them at least 30% above or below center.
+      const my = 50 + (y >= 50 ? 1 : -1) * Math.max(Math.abs(y - 50), 30);
+      return {
+        player,
+        index,
+        x,
+        y,
+        my: isMe ? y : my,
+        mby: 50 + 0.55 * (my - 50),
+        // Your own chips go beside your cards; everyone else's sit between them and the pot.
+        bx: isMe ? 64 : 50 + 0.6 * (x - 50),
+        by: isMe ? 80 : 50 + 0.55 * (y - 50),
+        isMe,
+      };
+    });
+  });
 
   protected readonly streetLabel = computed(() => {
-    const t = this.game.table();
+    const t = this.client.table();
     if (!t || t.round === 0) return 'Shuffling…';
     if (t.handOver && !t.outcome?.showdown) return 'Round over';
     return STREET_LABELS[t.street];
@@ -50,17 +84,19 @@ export class PokerTable {
 
   /** Cards that made the winning hand(s), for highlighting at showdown. */
   protected readonly winningCards = computed<Card[]>(() => {
-    const outcome = this.game.table()?.outcome;
+    const outcome = this.client.table()?.outcome;
     if (!outcome?.showdown) return [];
     return outcome.awards.flatMap((a) => outcome.hands[a.playerId]?.cards ?? []);
   });
 
   protected winAmount(playerId: string): number {
-    return this.game.table()?.outcome?.awards.find((a) => a.playerId === playerId)?.amount ?? 0;
+    const t = this.client.table();
+    if (!t?.handOver) return 0;
+    return t.outcome?.awards.find((a) => a.playerId === playerId)?.amount ?? 0;
   }
 
   protected handOf(playerId: string) {
-    return this.game.table()?.outcome?.hands[playerId] ?? null;
+    return this.client.table()?.outcome?.hands[playerId] ?? null;
   }
 
   protected isWinningCard(card: Card): boolean {

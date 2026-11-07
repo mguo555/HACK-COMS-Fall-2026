@@ -122,12 +122,9 @@
   .slot {
     width: 34px;
   }
-  .seat {
-    top: calc(var(--my) * 1%);
-  }
+  .seat,
   .bet {
     top: calc(var(--my) * 1%);
-    left: calc(var(--mx) * 1%);
   }
   /* No room beside your cards on a phone; your seat's tag already shows the bet. */
   .bet.mine {

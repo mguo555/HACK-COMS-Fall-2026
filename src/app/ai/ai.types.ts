@@ -1,7 +1,8 @@
-import { HumanProfile } from '../game/player-history';
-import { Street } from '../poker/engine';
+import type { HumanProfile } from '../game/player-history';
+import type { Street } from '../poker/engine';
+import type { Leaning, MoodLabel } from '../shared/protocol';
 
-/** What a bot is allowed to know about the table. Sent to the server to build prompts. */
+/** What a bot is allowed to know about the table when it decides or talks. */
 export interface BotView {
   round: number;
   street: Street;
@@ -52,25 +53,32 @@ export interface BotView {
   actionLog: string[];
   /** One-line summaries of the last couple of rounds. */
   recentRounds: string[];
-  /** What this bot remembers about the human, already compacted (see player-history.ts). */
-  profile: HumanProfile;
+  /** What this bot remembers about each human at the table, already compacted. */
+  profiles: HumanProfile[];
 }
 
-export interface ChatTurn {
-  from: 'human' | 'bot';
+/** A bot's private chat with one human (this round and the last, word for word). */
+export interface PrivateChat {
+  humanName: string;
+  turns: { from: 'human' | 'bot'; text: string; round: number }[];
+}
+
+/** A table announcement the bot heard this round or last. */
+export interface HeardAnnouncement {
+  fromName: string;
   text: string;
   round: number;
+  /** What this bot said back, if it reacted. */
+  reaction: string | null;
 }
 
-export interface DecideRequest {
-  personaId: string;
-  humanName: string;
+/** Everything a prompt is built from. */
+export interface BotContext {
   view: BotView;
-  conversation: ChatTurn[];
-}
-
-export interface ChatRequest extends DecideRequest {
-  message: string;
+  chats: PrivateChat[];
+  announcements: HeardAnnouncement[];
+  /** The bot's mood from recent results, e.g. tilted after losing a big pot. */
+  mood: { label: MoodLabel; reason: string } | null;
 }
 
 export type BotActionType = 'fold' | 'check' | 'call' | 'raise';
@@ -82,15 +90,17 @@ export interface BotDecision {
   tableTalk: string;
   /** Private reasoning, revealed after the round. */
   thought: string;
+  /** How much messages changed this decision, 0 to 100. Null for built-in decisions. */
+  influence: number | null;
   /** True when the built-in logic made this decision instead of Gemini. */
   offline: boolean;
 }
 
-export type AiState = 'checking' | 'online' | 'offline';
-
-export interface AiStatus {
-  state: AiState;
-  model?: string;
-  /** Why we're offline, in plain words. */
-  reason?: string;
+export interface ChatReply {
+  text: string;
+  sway: number | null;
+  leaning: Leaning | null;
+  /** How the message changed the bot's feelings about the sender. */
+  feeling: 'warmer' | 'colder' | 'same' | null;
+  offline: boolean;
 }

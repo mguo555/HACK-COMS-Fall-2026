@@ -1,61 +1,63 @@
-@if (game.table(); as t) {
-  <div class="stage">
-    <div class="felt">
-      <div class="center">
-        <div class="pot">
-          @if (t.pot > 0) {
-            <span class="chip"></span> Pot <strong>{{ t.pot }}</strong>
-          } @else if (t.outcome) {
-            {{ t.outcome.summary }}
-          }
-        </div>
-        <div class="board" aria-label="Community cards">
-          @for (slot of slots; track slot) {
-            @if (t.board[slot]; as card) {
-              <app-playing-card [card]="card" [highlight]="isWinningCard(card)" />
-            } @else {
-              <div class="slot"></div>
+@if (client.state(); as s) {
+  @if (s.table; as t) {
+    <div class="stage">
+      <div class="felt">
+        <div class="center">
+          <div class="pot">
+            @if (t.pot > 0) {
+              <span class="chip"></span> Pot <strong>{{ t.pot }}</strong>
+            } @else if (t.outcome) {
+              {{ t.outcome.summary }}
             }
-          }
-        </div>
-        <div class="street">
-          @if (t.round > 0) {
-            <span>Round {{ t.round }}</span> ·
-          }
-          {{ streetLabel() }}
-        </div>
-      </div>
-
-      @for (p of t.players; track p.id; let i = $index) {
-        <app-seat
-          class="seat"
-          [style.--x]="positions[i].x"
-          [style.--y]="positions[i].y"
-          [style.--my]="positions[i].my"
-          [player]="p"
-          [persona]="personaById(p.id)"
-          [dealer]="i === t.dealerIndex && t.round > 0"
-          [isTurn]="i === t.toActIndex"
-          [thinking]="game.thinkingBotId() === p.id"
-          [reveal]="!!handOf(p.id)"
-          [bubble]="game.bubbles()[p.id] ?? null"
-          [winAmount]="t.handOver ? winAmount(p.id) : 0"
-          [handLabel]="handOf(p.id)?.description ?? null"
-          [bestCards]="winAmount(p.id) > 0 ? (handOf(p.id)?.cards ?? []) : []"
-        />
-        @if (p.streetBet > 0) {
-          <div
-            class="bet"
-            [class.mine]="p.isHuman"
-            [style.--x]="positions[i].bx"
-            [style.--y]="positions[i].by"
-            [style.--mx]="positions[i].mbx"
-            [style.--my]="positions[i].mby"
-          >
-            <span class="chip"></span>{{ p.streetBet }}
           </div>
+          <div class="board" aria-label="Community cards">
+            @for (slot of slots; track slot) {
+              @if (t.board[slot]; as card) {
+                <app-playing-card [card]="card" [highlight]="isWinningCard(card)" />
+              } @else {
+                <div class="slot"></div>
+              }
+            }
+          </div>
+          <div class="street">
+            @if (t.round > 0) {
+              <span>Round {{ t.round }}</span> ·
+            }
+            {{ streetLabel() }}
+          </div>
+        </div>
+
+        @for (spot of spots(); track spot.player.id) {
+          <app-seat
+            class="seat"
+            [style.--x]="spot.x"
+            [style.--y]="spot.y"
+            [style.--my]="spot.my"
+            [player]="spot.player"
+            [isMe]="spot.isMe"
+            [persona]="s.personas[spot.player.id]"
+            [mood]="s.moods[spot.player.id] ?? null"
+            [dealer]="spot.index === t.dealerIndex && t.round > 0"
+            [isTurn]="spot.index === t.toActIndex"
+            [thinking]="s.thinkingBotId === spot.player.id"
+            [bubble]="s.bubbles[spot.player.id] ?? null"
+            [winAmount]="winAmount(spot.player.id)"
+            [handLabel]="handOf(spot.player.id)?.description ?? null"
+            [bestCards]="winAmount(spot.player.id) > 0 ? (handOf(spot.player.id)?.cards ?? []) : []"
+          />
+          @if (spot.player.streetBet > 0) {
+            <div
+              class="bet"
+              [class.mine]="spot.isMe"
+              [style.--x]="spot.bx"
+              [style.--y]="spot.by"
+              [style.--my]="spot.mby"
+            >
+              <span class="chip"></span>{{ spot.player.streetBet }}
+            </div>
+          }
         }
-      }
+      </div>
     </div>
-  </div>
+  }
 }

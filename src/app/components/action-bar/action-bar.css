@@ -85,3 +85,76 @@ input[type='range'] {
     width: 120px;
   }
 }
+
+.timer {
+  align-self: center;
+  margin-left: 4px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.timer.low {
+  color: var(--danger);
+}
+
+.announce {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.announce.nudge {
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 0 3px rgb(242 193 78 / 12%);
+}
+
+.announce label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.announce .row {
+  display: flex;
+  gap: 8px;
+}
+
+.announce input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.announce input:disabled {
+  opacity: 0.6;
+}
+
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.sway {
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
+}
+
+.sway strong {
+  margin-left: 4px;
+  color: var(--text);
+}

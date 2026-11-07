@@ -19,15 +19,15 @@ key works.
 
 ## What keeps it safe
 
-| Protection                                                                                                            | Where                                    |
-| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `.env` is git-ignored. Only `.env.example`, which has no secrets, is committed                                        | `.gitignore`                             |
-| Only the Node server reads the key. The browser talks to `/api/*` and never sees it                                   | `server/env.mjs`, `server/gemini.mjs`    |
-| `/api/health` returns whether AI is on, the model name, a reason and usage counts. Never the key                      | `server/index.mjs`                       |
-| The server warns at startup if `.env` is readable by other users                                                      | `server/env.mjs`                         |
-| The server listens on `127.0.0.1` only, so nobody else on the network (e.g. hackathon Wi-Fi) can use your quota       | `server/index.mjs` (`HOST`)              |
-| POST requests must be `application/json`, so other websites open in your browser can't quietly call your local server | `server/index.mjs`                       |
-| Request bodies are capped at 64 kB and chat messages at 280 characters                                                | `server/index.mjs`, `server/prompts.mjs` |
+| Protection                                                                                                            | Where                                 |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `.env` is git-ignored. Only `.env.example`, which has no secrets, is committed                                        | `.gitignore`                          |
+| Only the Node server reads the key. The browser talks to `/api/*` and never sees it                                   | `server/env.mjs`, `server/gemini.mjs` |
+| `/api/health` returns whether AI is on, the model name, a reason and usage counts. Never the key                      | `server/main.ts`                      |
+| The server warns at startup if `.env` is readable by other users                                                      | `server/env.mjs`                      |
+| The server listens on `127.0.0.1` only, so nobody else on the network (e.g. hackathon Wi-Fi) can use your quota       | `server/main.ts` (`HOST`)             |
+| POST requests must be `application/json`, so other websites open in your browser can't quietly call your local server | `server/main.ts`                      |
+| Request bodies are capped at 64 kB and chat messages at 280 characters                                                | `server/main.ts`, `server/prompts.ts` |
 
 ## Keeping usage low (free tier)
 
@@ -44,9 +44,11 @@ The key is on Google's free tier, so the game is built to make few calls:
   API call.
 - **Small requests:** Flash-Lite model, low thinking, replies capped at 1024 tokens. A typical
   call is about 900 tokens in and 70 out.
-- **Fewer calls per round:** chat replies always use Gemini. A bot's moves use Gemini only in
-  rounds where you've messaged that bot; other moves use the built-in poker logic
+- **Fewer calls per round:** whispers and announcements always use Gemini (one call per
+  announcement, however many AIs react). An AI's moves use Gemini only in rounds where someone
+  whispered to it or announced to the table; other moves use the built-in poker logic
   (`aiDecisions` in `src/app/game/game.config.ts`).
+- **More players, more calls:** every human at a table draws on the same quota and caps.
 
 When a cap is hit, the bots keep playing with the built-in logic and the page shows a short note.
 
@@ -57,6 +59,16 @@ only (`100.x.y.z`), so it is reachable from your tailnet but not from the local 
 server stays on `127.0.0.1`; the web server forwards `/api` to it on the same machine. The
 `tailnet` serve configuration in `angular.json` allows `*.ts.net` hostnames so the MagicDNS name
 works. Anyone on your tailnet can play and use the Gemini quota, within the caps above.
+
+## Tables and players
+
+- Each player gets a random token when they create or join a table; every request must carry
+  it, and it only works for that table. Tokens live in the browser tab (sessionStorage).
+- Each player's view is built on the server with the deck removed and other players' cards
+  blanked, so dev tools show nothing they shouldn't. Private whispers go only to their sender.
+- Names and messages are cleaned and length-limited on the server, and in prompts they are
+  always framed as table talk, never as instructions.
+- At most 30 tables and 4 humans per table; idle tables close after 30 minutes.
 
 ## Rules for contributors
 

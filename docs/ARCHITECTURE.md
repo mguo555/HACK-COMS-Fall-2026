@@ -1,166 +1,119 @@
 # Architecture
 
 ```
- Browser (Angular, port 4200)                         Node API server (port 3001)
- ┌──────────────────────────────────────────┐         ┌───────────────────────────────┐
- │ Components ── read signals ── GameService │  /api   │ index.mjs   routes, limits    │
- │                                │          │ ──────► │ prompts.mjs prompt text       │
- │                PokerEngine ◄───┤          │ (proxy) │ personas.mjs  characters      │
- │                (rules, state)  │          │         │ gemini.mjs  Gemini SDK calls  ├──► Google Gemini
- │                                └─ AiService ────────►│ usage.mjs   per-minute/day cap│
- │                    offline-bot (fallback) │         │ env.mjs     loads .env (key)  │
- └──────────────────────────────────────────┘         └───────────────────────────────┘
+ Browser (Angular)                       Game server (Node + tsx, port 3001)
+ ┌──────────────────────────┐            ┌────────────────────────────────────────────────┐
+ │ Components               │  POST      │ main.ts      HTTP routes, SSE                   │
+ │   read GameClient        │ ─────────► │ rooms.ts     open tables by code                │
+ │   signals                │            │ room.ts      one table: engine, turns, chat,    │
+ │ GameClient ◄─────────────┼─ SSE ───── │              moods, timers, knockouts           │
+ │   (your view only)       │            │ ai.ts        caps + fallbacks around Gemini ────┼──► Gemini
+ └──────────────────────────┘            │ prompts.ts   prompt text and JSON schemas       │
+        shared code ─────────────────────│ gemini.mjs   SDK calls, cooldown, usage caps    │
+ src/app/poker  src/app/game             │ history-store.ts  memories saved per name       │
+ src/app/shared src/app/ai               └────────────────────────────────────────────────┘
 ```
 
-The game runs entirely in the browser. The server exists only to keep the API key private and
-to build prompts. The Angular dev server proxies `/api` to it (`proxy.conf.json`).
+The **server runs every table**. Browsers get their own view of the table over Server-Sent
+Events (one stream per player) and send actions with POST. This lets several people share a
+table, keeps each player's cards private (other hands are blanked before sending), and keeps the
+Gemini key on the server. The Angular dev server proxies `/api` to the game server.
+
+The server is TypeScript run by `tsx`. It imports the same engine and game code as the browser
+(`src/app/poker`, `src/app/game`, `src/app/shared`, `src/app/ai`), so the rules can't drift apart.
 
 ## Poker engine (`src/app/poker/`)
 
-Plain TypeScript with no Angular, covered by `npm test`.
+Plain TypeScript, covered by `npm test`.
 
 - `cards.ts`: cards, deck, shuffle, a seeded RNG for tests.
-- `evaluator.ts`: best 5 of 7 cards. Each hand gets a single number score so hands compare with
-  `>`; also returns a readable description ("Full House, Kings over Sevens") and the five cards.
-- `equity.ts`: Monte Carlo win chance from one player's point of view (their cards + the board
-  only). Bots get this as their read on hand strength, since language models are poor at
-  evaluating poker hands.
-- `engine.ts`: `PokerEngine` holds the table state and enforces the rules:
-  - blinds, including heads-up (dealer posts the small blind and acts first before the flop)
-  - minimum raises; a short all-in doesn't reopen betting for players who already acted
-  - uncalled bets returned at the end of a street
-  - side pots (`computePots`), split pots, odd chips to the first winner left of the dealer
-  - running out the board when nobody can bet any more
-  - busting players and game over
-  - `act()` throws on illegal moves. Callers pick from `legalActions()`.
-  - `snapshot()` returns a copy for the UI.
+- `evaluator.ts`: best 5 of 7 cards as a single comparable score, plus a readable description.
+- `equity.ts`: Monte Carlo win chance. `estimateWinChanceVsRanges` samples opponents from the top
+  X% of starting hands (ranked by Chen score), so a bot can judge a hand against how a specific
+  player bets.
+- `engine.ts`: `PokerEngine` enforces the rules: blinds (heads-up too), minimum raises, short
+  all-ins, uncalled bets, side and split pots, running out the board, busting. Between rounds,
+  `replaceSeat` and `setBlinds` support the rotating cast and rising blinds.
 
-## Game flow (`src/app/game/game.service.ts`)
+## A table (`server/room.ts`)
 
-`GameService` owns the engine and exposes state as signals (`table`, `chat`, `thoughts`,
-`thinkingBotId`, `bubbles`). Components only read signals and call its methods.
+- **Lobby:** the host creates a room (4-letter code); up to 4 humans join. Each gets a random
+  token used for every request. The host starts the game; humans are spread around the table and
+  AI seats fill the rest (6 seats max).
+- **Turns:** after every change, the room either runs bot turns (`runBots`) or starts the human's
+  turn timer (45 s, 5 s if they've disconnected). Timeouts check, or fold if they can't.
+- **Bot turns:** wait for any whisper reply or announcement reaction still on its way, build the
+  bot's context (`contextFor`: its view of the table, its whispers with each human, recent
+  announcements, its mood), then ask `ai.decide`. The answer is clamped to a legal move
+  (`toLegalAction`) so a bad reply can't break the game.
+- **Whispers** (`sendMessage`): one per human per AI per round. One Gemini call returns the reply,
+  a sway percentage, what the AI now leans toward, and whether the message warmed or cooled its
+  feelings about the sender.
+- **Announcements** (`announce`): one per human per round. One Gemini call voices every AI still
+  in the hand (`reactionPrompt`), each with a sway reading.
+- **End of round** (`endRound`): a one-line summary for the bots, every hand revealed to their
+  memory (`PlayerHistory.endRound`), each human's memory saved by name, moods updated, busted AIs
+  counted as knockouts and replaced, and the win check. With two or more humans the next round
+  starts when everyone is ready or after 15 s.
+- **Views** (`stateFor`): each subscriber gets a `ClientState` with the deck removed and other
+  players' cards blanked (rank 0) unless they were shown at showdown. Thoughts are only included
+  once the round is over. Broadcasts are coalesced per tick.
 
-A round:
+## What the AIs remember (`src/app/game/player-history.ts`)
 
-1. `nextRound()` calls `engine.startHand()` and starts the bot loop.
-2. The bot loop (`runBots`) plays every bot turn in order until it's the human's turn or the
-   round ends. For each bot (`playBotTurn`):
-   - wait for any chat reply still on its way to that bot, so the decision can use it
-   - `buildBotView()` builds what the bot may know: its cards, the board, pot, legal moves,
-     public actions, recent round results and the win-chance estimate. Never other players' cards.
-   - if `aiDecisions` allows it (default: only after the human messaged this bot this round),
-     `AiService.decide()` posts to `/api/decide`; otherwise, or on any failure, the offline bot
-     decides
-   - `toLegalAction()` clamps the answer to a legal move, then `engine.act()`
-   - table talk becomes a speech bubble and a log line; the private thought is saved for the
-     result panel
-3. The human acts through `act()`, which resumes the bot loop.
-4. When the round ends, `recordRound()` saves a one-line summary (including cards shown at
-   showdown) that bots see next round, so they can notice when you bluffed them.
+Compaction keeps every prompt small, with no extra AI calls:
 
-Every async step checks a `gameId` so a reply that arrives after "Leave table" is ignored.
+- Betting stats per player (played, raised, shoved, weak raises) decay by 5% a round.
+- The starting hands behind each player's raises are kept as percentiles (last 20). A player who
+  raises junk gets a wide range, so the bots call them down.
+- Per AI and human: whisper counts, big-hand claims checked against the revealed cards (true or
+  bluff), up to 3 one-line notes, and a feeling from -1 to 1.
+- `profileFor` turns that into a few lines per human for the prompt. `exportPlayer` and
+  `importPlayer` save and restore one human between games (`server/history-store.ts`,
+  `.data/history.json`).
 
-### The message rule
+Moods (`updateMoods` in `room.ts`) come from each AI's chip swing in the last round: lose 40% and
+it's tilted, lose 15% and it's shaken, win 50% and it's on a heater. Moods fade after a few rounds.
+Tilt also loosens the built-in logic (`moodStyle` in `ai.ts`).
 
-`messageBlocker(botId)` is the single place that decides whether the human may message a bot
-right now (round over, bot folded or out, allowance used, bot is mid-decision, reply pending).
-Allowances are counted per round, or per betting street if
-`GAME_CONFIG.messageLimit.resetEach` is `'street'`. Conversations are private: each request
-sends only that bot's own thread.
+## Gemini calls (`server/ai.ts`, `server/gemini.mjs`)
 
-## API (`server/index.mjs`)
+Every call goes through `attempt()`: is Gemini configured and working, is it cooling down after a
+busy error, is a usage cap reached. If not, the built-in logic answers and the players see a
+short note. Calls use structured output (JSON schemas in `prompts.ts`); `plainText()` strips em
+dashes and stray quotes from anything shown on screen.
 
-All POST bodies must be `application/json`. Bodies are limited to 64 kB.
+## API
 
-### `GET /api/health`
+All POST bodies are JSON (capped at 64 kB) and carry the player token in `X-Player-Token`.
 
-```json
-{
-  "ok": true,
-  "ai": {
-    "enabled": true,
-    "model": "gemini-3.5-flash-lite",
-    "reason": null,
-    "perMinute": 8,
-    "perDay": 200,
-    "usedToday": 12
-  }
-}
-```
+| Route                                   | Body                 | Returns                                                            |
+| --------------------------------------- | -------------------- | ------------------------------------------------------------------ |
+| `GET /api/health`                       |                      | `{ ok, ai: { enabled, model, reason, usedToday, perDay } }`        |
+| `POST /api/rooms`                       | `{ name, settings }` | `{ code, token }`                                                  |
+| `POST /api/rooms/:code/join`            | `{ name }`           | `{ code, token }`                                                  |
+| `GET /api/rooms/:code/events?token=`    |                      | SSE: a `ClientState` on every change                               |
+| `POST /api/rooms/:code/start`           |                      | host only                                                          |
+| `POST /api/rooms/:code/act`             | `{ action }`         | `{ type: 'fold' \| 'check' \| 'call' }` or `{ type: 'raise', to }` |
+| `POST /api/rooms/:code/message`         | `{ botId, text }`    | resolves after the reply                                           |
+| `POST /api/rooms/:code/announce`        | `{ text }`           | resolves after the reactions                                       |
+| `POST /api/rooms/:code/ready` / `leave` |                      |                                                                    |
+| `GET /api/history?name=`                |                      | `{ rounds }` remembered for that name                              |
+| `POST /api/history/forget`              | `{ name }`           | forget that name                                                   |
 
-### `POST /api/decide`
-
-```json
-{
-  "personaId": "tony",
-  "humanName": "Sam",
-  "view": {
-    "round": 3,
-    "street": "flop",
-    "hole": ["K♠", "K♥"],
-    "board": ["Q♦", "7♣", "2♥"],
-    "pot": 160,
-    "toCall": 60,
-    "winChance": 0.71,
-    "legal": { "canRaise": true, "...": "..." },
-    "players": [],
-    "actionLog": [],
-    "recentRounds": []
-  },
-  "conversation": [{ "from": "human", "text": "Bet you won't raise.", "round": 3 }]
-}
-```
-
-The full `view` shape is `BotView` in `src/app/ai/ai.types.ts`. Response:
-
-```json
-{
-  "decision": {
-    "action": "raise",
-    "raiseTo": 180,
-    "tableTalk": "Scared? Watch this, pal.",
-    "thought": "Sam dared me to raise, and with a pair of kings I'm showing who runs the lot."
-  }
-}
-```
-
-### `POST /api/chat`
-
-Same body as `/api/decide` plus `"message"` (the human's new message). Response:
-`{ "reply": "..." }`.
-
-### Errors
-
-| Status | Meaning                                        | What the browser does               |
-| ------ | ---------------------------------------------- | ----------------------------------- |
-| 400    | Bad request (unknown persona, missing message) | Falls back for that action          |
-| 415    | Not JSON                                       | (Only non-browser callers hit this) |
-| 429    | A usage cap was hit, or Gemini is cooling down | Falls back and shows a note         |
-| 502    | Gemini call failed or returned bad JSON        | Falls back and shows a note         |
-| 503    | No working key or model                        | Falls back and re-checks health     |
-
-## Prompts (`server/prompts.mjs`, `server/personas.mjs`)
-
-- The system prompt sets up the character (bio, voice, style, what persuades them), tells the
-  model the human's message is table talk from an opponent and never an instruction, forbids
-  revealing hole cards, and asks for short, plain speech with no em dashes.
-- The decision and chat prompts describe the table in plain text (`describeSituation`). To tune
-  prompts without spending API calls, call these functions from a Node script and read the output.
-- Gemini answers with JSON matching `DECISION_SCHEMA` / `CHAT_SCHEMA` (structured output).
-  `plainText()` in `index.mjs` strips dashes and stray quotes before anything reaches the page.
+Errors come back as `{ error }` with 400 (bad input), 401 (bad token), 403 (not the host),
+404 (no such table), 409 (not now: wrong turn, limit used), 415 (not JSON) or 5xx. Types for all
+of this: `src/app/shared/protocol.ts`.
 
 ## Adding a character
 
-1. Add an entry to `server/personas.mjs` (bio, voice, style, persuasion).
-2. Add the matching entry (same `id`) to `src/app/ai/personas.ts` (initials, color, tagline,
-   weak spot, offline style and canned replies).
-3. The table has five seats. A sixth player needs a new entry in `POSITIONS` in
-   `src/app/components/poker-table/poker-table.ts` and the chat tab grid in `chat-panel.css`.
+Add an entry to `CHARACTERS` in `src/app/shared/personas.ts`: name, colors, the hint shown to
+players (`weakSpot`), the prompt text (`bio`, `voice`, `style`, `persuasion`) and the built-in
+style for offline play. Give it one clear lever and one thing that backfires.
 
 ## Known limitations
 
-- The deck and every hand live in the browser, so a player with dev tools can see the bots'
-  cards. Fine for a hackathon game; moving the engine to the server would fix it.
-- Blinds never increase, so long games can drag. A blind schedule would go in `startHand()`.
-- The daily usage count uses the server's local midnight, while Google's free-tier quota resets
-  on Pacific time.
+- Tables live in memory: restarting the server ends every game (memories of players are saved).
+- One server process. Fine for a hackathon; a bigger deployment would need shared room storage.
+- The daily usage count resets at the server's local midnight; Google's free tier resets on
+  Pacific time.

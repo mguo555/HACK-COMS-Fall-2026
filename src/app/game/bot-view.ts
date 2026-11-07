@@ -18,7 +18,6 @@ export function buildBotView(
   botId: string,
   recentRounds: string[],
   history: PlayerHistory,
-  humanId: string,
 ): BotView {
   const s = engine.state;
   const index = s.players.findIndex((p) => p.id === botId);
@@ -91,7 +90,9 @@ export function buildBotView(
     })),
     actionLog: s.log.filter((e) => e.round === s.round && e.kind !== 'round').map((e) => e.text),
     recentRounds: recentRounds.slice(-2),
-    profile: history.profileFor(botId, humanId),
+    profiles: s.players
+      .filter((p) => p.isHuman)
+      .map((p) => history.profileFor(botId, p.id, p.name)),
   };
 }
 

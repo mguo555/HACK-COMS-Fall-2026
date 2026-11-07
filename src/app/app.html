@@ -1,55 +1,81 @@
-@if (game.phase() === 'intro') {
-  <app-start-screen />
-} @else {
-  <div class="shell">
-    <header class="top">
-      <span class="brand">Will AI Beat Us?</span>
-      <div class="meta">
-        @if (game.table(); as t) {
-          @if (t.round > 0) {
-            <span class="pill">Round {{ t.round }}</span>
-          }
-          <span class="pill">Blinds {{ t.smallBlind }}/{{ t.bigBlind }}</span>
-        }
-        @switch (ai.status().state) {
-          @case ('online') {
-            <span class="pill ok" [title]="ai.status().model ?? ''"
-              ><span class="dot"></span>Gemini</span
-            >
-          }
-          @case ('offline') {
-            <span class="pill warn" [title]="ai.status().reason ?? ''"
-              ><span class="dot"></span>Offline mode</span
-            >
-          }
-          @default {
-            <span class="pill">Connecting…</span>
-          }
-        }
-        <button class="btn btn-sm btn-ghost" (click)="game.quitToMenu()">Leave table</button>
-      </div>
-    </header>
+@switch (client.view()) {
+  @case ('start') {
+    <app-start-screen />
+  }
+  @case ('lobby') {
+    <app-lobby />
+  }
+  @default {
+    @if (client.state(); as s) {
+      <div class="shell">
+        <header class="top">
+          <span class="brand">Will AI Beat Us?</span>
+          <div class="meta">
+            <span class="pill" title="Table code">Table {{ s.code }}</span>
+            @if (s.table; as t) {
+              @if (t.round > 0) {
+                <span class="pill">Round {{ t.round }}</span>
+              }
+              <span
+                class="pill"
+                [title]="'Blinds go up in ' + s.scoreboard.roundsToBlindsUp + ' rounds'"
+              >
+                Blinds {{ t.smallBlind }}/{{ t.bigBlind }}
+              </span>
+            }
+            <span class="pill score" title="AIs knocked out out of the goal">
+              AIs out {{ s.scoreboard.knockouts }}/{{ s.scoreboard.goal }}
+            </span>
+            @if (s.scoreboard.humansTotal > 1) {
+              <span class="pill"
+                >Humans left {{ s.scoreboard.humansLeft }}/{{ s.scoreboard.humansTotal }}</span
+              >
+            }
+            @if (s.ai.enabled) {
+              <span
+                class="pill ok"
+                [title]="
+                  s.ai.model + ', ' + s.ai.usedToday + ' of ' + s.ai.perDay + ' calls used today'
+                "
+              >
+                <span class="dot"></span>Gemini
+              </span>
+            } @else {
+              <span class="pill warn" [title]="s.ai.reason ?? ''"
+                ><span class="dot"></span>Offline mode</span
+              >
+            }
+            @if (client.connection() === 'lost') {
+              <span class="pill warn">Reconnecting…</span>
+            }
+            <button class="btn btn-sm btn-ghost" (click)="client.leave()">Leave table</button>
+          </div>
+        </header>
 
-    @if (ai.lastError(); as note) {
-      <div class="notice" role="status">
-        <span>{{ note }}</span>
-        <button class="btn btn-sm btn-ghost" (click)="ai.lastError.set(null)">Dismiss</button>
+        @if (client.error() ?? s.notice; as note) {
+          <div class="notice" role="status">
+            <span>{{ note }}</span>
+            @if (client.error()) {
+              <button class="btn btn-sm btn-ghost" (click)="client.error.set(null)">Dismiss</button>
+            }
+          </div>
+        }
+
+        <main class="layout">
+          <section class="play">
+            <app-poker-table />
+            @if (s.phase === 'over' || (s.table?.handOver && (s.table?.round ?? 0) > 0)) {
+              <app-hand-result />
+            } @else {
+              <app-action-bar />
+            }
+          </section>
+          <aside class="side">
+            <app-chat-panel class="chat" />
+            <app-game-log class="log" />
+          </aside>
+        </main>
       </div>
     }
-
-    <main class="layout">
-      <section class="play">
-        <app-poker-table />
-        @if (game.table()?.handOver && (game.table()?.round ?? 0) > 0) {
-          <app-hand-result />
-        } @else {
-          <app-action-bar />
-        }
-      </section>
-      <aside class="side">
-        <app-chat-panel class="chat" />
-        <app-game-log class="log" />
-      </aside>
-    </main>
-  </div>
+  }
 }

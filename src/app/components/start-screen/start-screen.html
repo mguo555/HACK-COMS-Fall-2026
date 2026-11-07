@@ -3,47 +3,41 @@
     <p class="eyebrow">No-Limit Texas Hold'em</p>
     <h1>Will AI Beat Us?</h1>
     <p class="lede">
-      You against four AI players, each with their own personality. Before they act, you can send
-      each of them one private message per round. Bluff, flatter, threaten or plead. Whatever gets
-      them to fold, or to raise into your big hand.
+      You and your friends against a table of AI players. Every round you can whisper one message to
+      each of them and make one announcement to the whole table. Bluff, flatter, threaten or sing.
+      Knock enough of them out and the humans win.
     </p>
 
     <ol class="rules">
       <li>
-        Everyone starts with <strong>{{ config.startingStack }}</strong> chips. Blinds are
-        {{ config.smallBlind }}/{{ config.bigBlind }}.
+        Everyone starts with <strong>{{ config.startingStack }}</strong> chips. Blinds start at
+        {{ config.blindLevels[0][0] }}/{{ config.blindLevels[0][1] }} and go up every
+        {{ config.roundsPerLevel }} rounds.
       </li>
       <li>
-        You get <strong>one message per player each round</strong>, up to
-        {{ config.maxMessageLength }} characters. They only see what you send them.
+        Each round: <strong>one private message per AI</strong> and
+        <strong>one announcement to the table</strong>. You see how much each one swayed them.
       </li>
+      <li>When an AI runs out of chips, a new one sits down. Knock out enough of them to win.</li>
       <li>
-        After each round you can read what every player was thinking, and whether you got to them.
+        After each round the AIs see everyone's cards, yours included, and they remember how you
+        play, what you told them and how you treated them.
       </li>
-      <li>
-        After each round the bots see everyone's cards, yours included, and remember how you play.
-      </li>
-      <li>Last player with chips wins.</li>
     </ol>
 
-    <form class="join" (submit)="$event.preventDefault(); start()">
-      <label for="name">Your name</label>
-      <div class="row">
-        <input
-          id="name"
-          maxlength="24"
-          autocomplete="nickname"
-          placeholder="Player"
-          [value]="name()"
-          (input)="name.set($any($event.target).value)"
-        />
-        <button class="btn btn-primary" type="submit">Deal me in</button>
-      </div>
-    </form>
-
+    <label class="name" for="name">Your name</label>
+    <input
+      id="name"
+      class="field"
+      maxlength="24"
+      autocomplete="nickname"
+      placeholder="Player"
+      [value]="name()"
+      (input)="name.set($any($event.target).value)"
+    />
     @if (remembered() > 0) {
       <p class="memory muted">
-        The bots remember {{ name().trim() || 'Player' }} from {{ remembered() }} earlier
+        The AIs remember {{ name().trim() }} from {{ remembered() }} earlier
         {{ remembered() === 1 ? 'round' : 'rounds' }}.
         <button class="btn btn-sm btn-ghost" type="button" (click)="forget()">
           Make them forget
@@ -51,35 +45,101 @@
       </p>
     }
 
-    <p class="status">
-      @switch (ai.status().state) {
-        @case ('checking') {
-          <span class="pill">Checking the AI connection…</span>
-        }
-        @case ('online') {
-          <span class="pill ok"
-            ><span class="dot"></span>Gemini connected ({{ ai.status().model }})</span
+    <div class="choices">
+      <form class="card" (submit)="$event.preventDefault(); create()">
+        <h2>Start a table</h2>
+        <fieldset class="toggle" aria-label="AI players">
+          <button
+            type="button"
+            [class.on]="aiStyle() === 'characters'"
+            (click)="aiStyle.set('characters')"
           >
-        }
-        @case ('offline') {
+            Characters
+          </button>
+          <button type="button" [class.on]="aiStyle() === 'gemini'" (click)="aiStyle.set('gemini')">
+            Base Gemini
+          </button>
+        </fieldset>
+        <p class="hint muted">
+          @if (aiStyle() === 'characters') {
+            A rotating cast with personalities, each with their own weak spot.
+          } @else {
+            Plain Gemini players with no character. Only good arguments work.
+          }
+        </p>
+        <div class="row">
+          <label>
+            AI players
+            <select class="field" (change)="aiSeats.set(num($any($event.target).value))">
+              @for (n of seatOptions; track n) {
+                <option [value]="n" [selected]="n === aiSeats()">{{ n }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Knock out to win
+            <select class="field" (change)="goal.set(num($any($event.target).value))">
+              @for (n of goalOptions; track n) {
+                <option [value]="n" [selected]="n === goal()">{{ n }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        <button class="btn btn-primary" type="submit" [disabled]="client.busy()">
+          Create table
+        </button>
+      </form>
+
+      <form class="card" (submit)="$event.preventDefault(); join()">
+        <h2>Join a table</h2>
+        <p class="hint muted">Ask the host for the 4-letter code, or open their invite link.</p>
+        <input
+          class="field code"
+          maxlength="4"
+          placeholder="CODE"
+          autocomplete="off"
+          aria-label="Table code"
+          [value]="code()"
+          (input)="code.set($any($event.target).value.toUpperCase())"
+        />
+        <button class="btn" type="submit" [disabled]="client.busy() || code().trim().length !== 4">
+          Join
+        </button>
+      </form>
+    </div>
+
+    @if (client.error(); as error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
+    <p class="status">
+      @if (client.health(); as h) {
+        @if (h.enabled) {
+          <span class="pill ok"><span class="dot"></span>Gemini connected ({{ h.model }})</span>
+        } @else {
           <span class="pill warn"><span class="dot"></span>Offline mode</span>
           <span class="muted">
-            AI is unavailable: {{ ai.status().reason }}. You can still play; the bots use simple
-            built-in logic and canned replies.
+            AI is unavailable: {{ h.reason }}. You can still play; the AIs use built-in logic and
+            canned replies.
           </span>
         }
+      } @else {
+        <span class="pill">Checking the AI connection…</span>
       }
     </p>
   </section>
 
-  <section class="cast" aria-label="Your opponents">
-    @for (p of personas; track p.id) {
+  <section class="cast" aria-label="The cast">
+    <h2>The cast</h2>
+    @for (p of cast; track p.id) {
       <article [style.--accent]="p.color">
         <span class="avatar">{{ p.initials }}</span>
         <div>
-          <h2>{{ p.fullName }}</h2>
+          <h3>
+            {{ p.fullName }}
+          </h3>
           <p>{{ p.tagline }}</p>
-          <p class="hint">{{ p.weakSpot }}</p>
+          <p class="weak">{{ p.weakSpot }}</p>
         </div>
       </article>
     }

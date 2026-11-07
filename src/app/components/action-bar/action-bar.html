@@ -8,6 +8,9 @@
       @if (legal.canRaise) {
         <button class="btn btn-primary" (click)="raise()">{{ raiseLabel() }}</button>
       }
+      @if (secondsLeft() !== null) {
+        <span class="timer" [class.low]="secondsLeft()! <= 10">{{ secondsLeft() }}s</span>
+      }
     </div>
 
     @if (legal.canRaise) {
@@ -47,4 +50,52 @@
     <span class="typing"><i></i><i></i><i></i></span>
     {{ waitingText() }}
   </div>
+}
+
+@if (client.state(); as s) {
+  <form class="announce" [class.nudge]="nudge()" (submit)="$event.preventDefault(); announce(box)">
+    <label for="announce">
+      {{ nudge() ? 'Say something to the whole table?' : 'Announce to the table' }}
+      <span class="muted"
+        >({{ s.announceLeft > 0 ? s.announceLeft + ' left this round' : 'used' }})</span
+      >
+    </label>
+    <div class="row">
+      <input
+        #box
+        #announceBox
+        id="announce"
+        [maxLength]="maxLength"
+        autocomplete="off"
+        [placeholder]="s.announceBlocker ?? 'Everyone at the table hears this…'"
+        [disabled]="!!s.announceBlocker"
+        (input)="draft.set($any($event.target).value)"
+      />
+      <button class="btn btn-sm" type="submit" [disabled]="!!s.announceBlocker || !draft().trim()">
+        Announce
+      </button>
+    </div>
+    @if (myAnnouncement(); as a) {
+      <div class="reactions">
+        @if (a.pending) {
+          <span class="muted"
+            >The table is reacting <span class="typing"><i></i><i></i><i></i></span
+          ></span>
+        } @else {
+          @for (r of a.reactions; track r.botId) {
+            <span class="sway" [style.--accent]="client.persona(r.botId)?.color">
+              {{ client.persona(r.botId)?.name }}
+              @if (r.sway !== null) {
+                <strong>{{ r.sway }}%</strong>{{ leaningText(r.leaning) }}
+              } @else {
+                <span class="muted">no sway reading</span>
+              }
+            </span>
+          } @empty {
+            <span class="muted">Nobody reacted.</span>
+          }
+        }
+      </div>
+    }
+  </form>
 }

@@ -5,113 +5,93 @@ update **Progress log** and **Decisions** whenever something meaningful changes.
 
 ## What this is
 
-A browser poker game (No-Limit Texas Hold'em). One human plays against four AI characters
-powered by **Google Gemini**. The twist: each round, the human may send **one private chat
-message to each AI player** to talk them into folding or raising. Each character reacts to
-persuasion differently.
+A multiplayer browser poker game (No-Limit Texas Hold'em). Up to 4 humans play against AI
+players powered by **Google Gemini**. Each round a human may whisper one private message to each
+other player (AI or human) and make one announcement to the whole table. AIs report how much a
+message swayed them, have moods and feelings, and remember each human between games. Knock out
+N AIs to win. Plays over Tailscale with `npm run dev:tailnet`.
 
 ## Team preferences (read these)
 
-- **Gemini only for now.** The team only has a Gemini key. Don't add other AI providers until
-  asked. (A Claude version of the server existed briefly; see commit `0fda495` if it's ever needed.)
-- **Free-tier key: keep calls low.** Never loop or batch real API calls while testing. Prefer
-  testing prompts offline (see `describeSituation` in `server/prompts.mjs`). See `docs/SECURITY.md`.
-- **No em dashes or AI-sounding filler in anything shown on the front end**, including model
-  output (the prompts forbid it and `plainText()` in `server/index.mjs` strips dashes).
+- **Gemini only for now.** Don't add other AI providers until asked (a Claude server existed
+  briefly: commit `0fda495`).
+- **Free-tier key: keep calls low.** Never loop real API calls while testing. Test with
+  `GEMINI_API_KEY=` (offline) or with the daily cap already reached; render prompts locally with
+  tsx. See `docs/SECURITY.md`.
+- **No em dashes or AI-sounding filler in anything on the front end**, including model output
+  (prompts forbid it; `plainText()` in `server/ai.ts` strips dashes).
+- **No AI is forced into the lineup.** Every game shuffles the whole cast.
 - Write docs as you go, update this file, and commit at milestones on a feature branch.
 
 ## Stack
 
-- **Frontend:** Angular 21 (standalone components, signals, zoneless: no zone.js). `src/app/`
-- **Backend:** tiny Node server (`server/`, plain ESM JS, no framework) that holds the API key and
-  calls Gemini through `@google/genai`. The Angular dev server proxies `/api` to it.
-- **Tests:** Vitest for the pure-TypeScript poker engine (`npm test`).
+- **Frontend:** Angular 21 (standalone, signals, zoneless). A thin client: `GameClient` holds the
+  `ClientState` pushed by the server over SSE and POSTs actions.
+- **Backend:** Node + `tsx` (`server/*.ts`, no framework). Runs every table (`Room`), calls
+  Gemini (`@google/genai`), and imports the same engine/game code as the browser.
+- **Tests:** Vitest (`npm test`): engine, history/compaction, a shove-every-hand simulation.
 
 ## Commands
 
-| Command               | What it does                                                  |
-| --------------------- | ------------------------------------------------------------- |
-| `npm run dev`         | API server (port 3001) + Angular dev server (port 4200)       |
-| `npm run dev:tailnet` | Same, web server bound to this machine's Tailscale IP only    |
-| `npm run server`      | API server only                                               |
-| `npm start`           | Angular dev server only (bots use offline logic if no server) |
-| `npm test`            | Engine unit tests (Vitest)                                    |
-| `npm run build`       | Production build to `dist/`                                   |
+| Command               | What it does                                               |
+| --------------------- | ---------------------------------------------------------- |
+| `npm run dev`         | Game server (3001) + Angular dev server (4200)             |
+| `npm run dev:tailnet` | Same, web server bound to this machine's Tailscale IP only |
+| `npm run server`      | Game server only (`server:watch` to auto-restart)          |
+| `npm test`            | Unit tests                                                 |
+| `npm run typecheck`   | tsc for the app and the server                             |
+| `npm run build`       | Production build                                           |
 
-Install note: npm 10 crashes on this lockfile ("Cannot read properties of null (reading
-'edgesOut')"). Use npm 11 (`npx npm@11 install ...`), which `package.json` already declares.
+Install with npm 11 (`npx npm@11 install`); npm 10 crashes on this lockfile ("edgesOut").
+Gotcha: `pgrep -f`/`pkill -f` with a pattern also matches the shell running it. Kill by port:
+`kill $(lsof -t -i:3001 -sTCP:LISTEN)`. Killing `npx` can orphan its child; run
+`node_modules/.bin/tsx` directly for background servers.
 
 ## Layout
 
-See `docs/ARCHITECTURE.md` for the full picture. Quick map:
+See `docs/ARCHITECTURE.md`. Quick map:
 
-- `src/app/poker/`: engine. Cards, hand evaluator, equity simulation, table state machine. No Angular.
-- `src/app/ai/`: persona display data, request types, HTTP client, offline fallback bot.
-- `src/app/game/`: `GameService` runs the table, bot turns, chat and message limits (signals).
-- `src/app/components/`: UI pieces (table, seat, card, action bar, chat panel, log, result panel).
-- `server/`: `index.mjs` (HTTP + routes), `gemini.mjs` (API calls, cooldown), `usage.mjs` (caps),
-  `prompts.mjs` + `personas.mjs` (prompt text), `env.mjs` (loads `.env`).
+- `server/`: `main.ts` (routes, SSE), `rooms.ts`, `room.ts` (the game loop), `ai.ts` (caps and
+  fallbacks), `prompts.ts`, `gemini.mjs`, `usage.mjs`, `history-store.ts`, `env.mjs`.
+- `src/app/poker/`: engine. `src/app/game/`: bot views, `PlayerHistory`, config, `GameClient`.
+- `src/app/shared/`: `personas.ts` (the whole cast, one file), `protocol.ts` (server/browser types).
+- `src/app/components/`: start screen, lobby, table, seat, card, action bar (with announcements),
+  chat panel (whispers), log, round result / game over.
 
 ## Conventions
 
-- Persona `id`s must match between `src/app/ai/personas.ts` (UI + offline style) and
-  `server/personas.mjs` (prompt text).
-- The engine is the source of truth for legal moves. Model replies are clamped to legal actions
-  client-side (`toLegalAction`), so a bad reply can never break the game.
-- Keep component CSS under the 4 kB budget warning in `angular.json`; shared styles live in
-  `src/styles.css`.
+- The engine is the source of truth for legal moves; model replies go through `toLegalAction`.
+- Each player's view is sanitized on the server (deck removed, other hole cards rank 0).
+- Keep component CSS under the 4 kB budget warning; shared styles in `src/styles.css`.
 - Default model `gemini-3.5-flash-lite`, low thinking, 1024 max output tokens.
-  `gemini-2.5-flash` is closed to new keys and `gemini-3.8-flash` returned 503 "high demand" on
-  the free tier (2026-11-07). Override with `POKER_GEMINI_MODEL`.
-
-## Secrets and usage
-
-- The key lives only in `.env` (git-ignored, `chmod 600`), read only by `server/env.mjs`. Never in
-  `src/` (ships to the browser). Details and contributor rules: `docs/SECURITY.md`.
-- Server binds to `127.0.0.1` and rejects non-JSON POSTs, so the network and other websites
-  can't use the quota.
-- Caps: 8 calls/min, 200/day (persisted in `.data/ai-usage.json`), 30 s cooldown after a Google
-  429/503, permanent stop after a rejected key/model, SDK retries off.
 
 ## Decisions
 
-- "Round" = one hand. The human gets 1 message per AI per hand (`messageLimit.resetEach` in
-  `src/app/game/game.config.ts` can switch the reset to every betting street).
-- Messages are private 1:1 (each bot only sees its own conversation), max 280 characters.
-- To save quota, a bot's moves use Gemini only in rounds where the human messaged it; otherwise
-  the built-in logic plays (`aiDecisions` in `game.config.ts`). Chat replies always use Gemini.
-- Bots' private "thoughts" are revealed after each hand so the player can see if persuasion worked.
-- No key or AI unavailable: the game still works. Bots use a heuristic (win chance vs pot odds)
-  and canned replies.
+- "Round" = one hand. 1 whisper per sender per recipient per round; 1 announcement per human
+  per round (`game.config.ts`).
+- AI moves use Gemini only in rounds where someone whispered to that AI or announced
+  (`aiDecisions: 'after-message'`). One announcement = one Gemini call for all reactions.
+- After every round all hole cards are revealed to the bots' memory (not to humans).
+- Compaction: decayed stats, 20 raise samples, 3 notes + counters + feeling per bot/human.
+- Moods from chip swings (tilted / shaken / on a heater); feelings from lies caught and whisper
+  replies ("warmer"/"colder"). Saved per name in `.data/history.json`.
+- Busted AIs are replaced from the shuffled cast; blinds rise every 8 rounds.
+- Whispers between humans never reach the AIs and cost no Gemini calls.
 
 ## Progress log
 
-- 2026-11-07: Branch `feature/poker-game`.
-  - Dev tooling, this file. Engine + 34 Vitest tests (hand ranks, side pots, short all-ins,
-    200-hand chip-conservation run).
-  - API server with security hardening (loopback bind, JSON-only POST, `.env` permission check).
-  - Switched the AI from Claude to Gemini at the team's request, with usage caps, cooldown and a
-    hard stop on rejected key/model. Live testing used 5 Gemini calls in total (2x 404 on
-    gemini-2.5-flash, 1 timeout + 1 503 on gemini-3.8-flash, 1 success on 3.5-flash-lite).
-  - Full UI: start screen, table, action bar, chat panel, log, result panel with bot thoughts.
-    Checked in headless Chrome at 1440px and 390px, offline and against the real server with the
-    cap reached (0 Gemini calls).
-  - Docs: README (setup, play, settings), docs/ARCHITECTURE.md, docs/SECURITY.md.
-
-- 2026-11-07: Added `npm run dev:tailnet` (`scripts/tailnet.mjs`). Web on the Tailscale IP
-  only, API still loopback, `tailnet` serve config allows `.ts.net` (the `--allowed-hosts` CLI
-  flag is boolean-only). Verified: game loads via IP and MagicDNS name, Wi-Fi address refused.
-  This machine: `main-pc.tail4a2f01.ts.net` / `100.84.41.20`.
-
-- 2026-11-07: Bots wise up. Player shoving every hand made bots fold (they compared their hand
-  against random cards from everyone still in). Now: range-aware odds vs the bettor
-  (`estimateWinChanceVsRanges`, Chen-score ranges), `PlayerHistory` (decayed stats, cards
-  revealed to bots after every round, bluff detection on chat claims, 3 notes per bot, saved per
-  name in localStorage), compact profile in prompts (~1300 tokens/call max). Sim test: call rate
-  vs a constant shover goes 25% -> 45%, free blind steals < 35%.
+- 2026-11-07 (`feature/poker-game`): engine + tests, single-player Angular UI, Gemini server with
+  usage caps, security hardening, Tailscale mode, bots that read the player (range-aware odds,
+  memory, reveal after each round). Live Gemini testing used 5 calls (4 errors, 1 success).
+- 2026-11-07 (`feature/multiplayer`): moved the game to the server (rooms, SSE, tokens, turn
+  timer, ready-up). 13-character cast incl. Hatsune Miku, Ritchie the Tiger (RIT) and Pepsi Man,
+  base Gemini mode, rotating seats, rising blinds, knockout goal, final scoreboard. Whisper sway
+  %, influence % in thoughts, table announcements with one-call reactions, moods and feelings,
+  human-to-human whispers. Verified with a 23-check server smoke test and a two-browser
+  Playwright run (offline, 0 Gemini calls).
 
 ## Ideas / next steps
 
-- Live-test a few real rounds with Gemini (chat path not yet exercised live; decide path is).
-- Blind increases so games end; a "fast forward" when the human has folded.
-- Optional: move the engine server-side so card data isn't visible in dev tools.
+- Inclusivity pass: languages for AI replies, pronouns, respectful-banter rule, four-color deck,
+  larger text, hand-rankings guide (in progress).
+- Live-test whisper and announcement prompts with a few real Gemini calls.

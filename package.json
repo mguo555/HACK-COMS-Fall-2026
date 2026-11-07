@@ -4,13 +4,15 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "server": "node server/index.mjs",
+    "server": "tsx server/main.ts",
     "dev": "concurrently -k -n api,web -c magenta,cyan \"npm:server\" \"npm:start\"",
     "dev:tailnet": "node scripts/tailnet.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "server:watch": "tsx watch server/main.ts",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.server.json --noEmit"
   },
   "private": true,
   "packageManager": "npm@11.19.1",
@@ -29,8 +31,10 @@
     "@angular/build": "^21.2.29",
     "@angular/cli": "^21.2.29",
     "@angular/compiler-cli": "^21.2.0",
+    "@types/node": "^22.20.5",
     "concurrently": "^9.2.5",
     "prettier": "^3.8.1",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.2",
     "vitest": "^4.1.12"
   }

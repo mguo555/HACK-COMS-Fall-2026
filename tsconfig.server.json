@@ -1,0 +1,10 @@
+/* Type-checks the Node server (run with tsx) and the shared game code it imports. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "allowJs": false
+  },
+  "include": ["server/**/*.ts"]
+}
