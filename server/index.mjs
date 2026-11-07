@@ -18,6 +18,9 @@ import {
 } from './prompts.mjs';
 
 const PORT = Number(process.env.PORT) || 3001;
+// Loopback only by default, so other machines on the network (e.g. hackathon Wi-Fi) can't use
+// the server to spend your API credits. Set HOST=0.0.0.0 only if you really need LAN access.
+const HOST = process.env.HOST || '127.0.0.1';
 const MAX_BODY_BYTES = 64 * 1024;
 const ACTIONS = new Set(['fold', 'check', 'call', 'raise']);
 
@@ -117,6 +120,11 @@ const server = http.createServer(async (req, res) => {
   const handler = routes[`${req.method} ${path}`];
   if (!handler) return send(res, 404, { error: 'not found' });
   try {
+    // Requiring a JSON content type means a web page on another origin can't fire requests at
+    // this server without a CORS preflight, which it never approves.
+    if (req.method === 'POST' && !req.headers['content-type']?.startsWith('application/json')) {
+      throw new HttpError(415, 'expected application/json');
+    }
     const body = req.method === 'POST' ? await readJson(req) : {};
     send(res, 200, await handler(body));
   } catch (error) {
@@ -126,9 +134,9 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, async () => {
+server.listen(PORT, HOST, async () => {
   console.log(
-    `[api] listening on http://localhost:${PORT} (model ${MODEL}, effort ${EFFORT || 'default'})`,
+    `[api] listening on http://${HOST}:${PORT} (model ${MODEL}, effort ${EFFORT || 'default'})`,
   );
   const ai = await checkAi();
   console.log(

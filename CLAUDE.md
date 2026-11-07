@@ -50,6 +50,13 @@ See `docs/ARCHITECTURE.md` for the full picture. Quick map:
 - Default model `claude-opus-5-5` at effort `low` (latency matters in a turn-based game);
   override with `POKER_AI_MODEL` / `POKER_AI_EFFORT` in `.env`. Server-side refusal fallbacks are on.
 
+## Secrets
+
+- API key lives only in `.env` (git-ignored, `chmod 600`), read only by `server/env.mjs`. Never in
+  `src/` (ships to the browser). Details and contributor rules: `docs/SECURITY.md`.
+- Server binds to `127.0.0.1` and rejects non-JSON POSTs, so the network and other websites
+  can't spend credits.
+
 ## Decisions
 
 - "Round" = one hand. The human gets 1 message per AI per hand (`MESSAGE_LIMIT` config in
