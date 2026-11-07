@@ -85,7 +85,20 @@ See `docs/ARCHITECTURE.md` for the full picture. Quick map:
 
 ## Progress log
 
-- 2026-11-07: Branch `feature/poker-game`. Dev tooling, this file. Engine + 34 tests. API server
-  with security hardening (loopback bind, JSON-only POST, `.env` permission check). Switched the
-  AI from Claude to Gemini at the team's request, with usage caps. Verified one live Gemini call
-  (~0.9 s, ~970 tokens). UI in progress.
+- 2026-11-07: Branch `feature/poker-game`.
+  - Dev tooling, this file. Engine + 34 Vitest tests (hand ranks, side pots, short all-ins,
+    200-hand chip-conservation run).
+  - API server with security hardening (loopback bind, JSON-only POST, `.env` permission check).
+  - Switched the AI from Claude to Gemini at the team's request, with usage caps, cooldown and a
+    hard stop on rejected key/model. Live testing used 5 Gemini calls in total (2x 404 on
+    gemini-2.5-flash, 1 timeout + 1 503 on gemini-3.8-flash, 1 success on 3.5-flash-lite).
+  - Full UI: start screen, table, action bar, chat panel, log, result panel with bot thoughts.
+    Checked in headless Chrome at 1440px and 390px, offline and against the real server with the
+    cap reached (0 Gemini calls).
+  - Docs: README (setup, play, settings), docs/ARCHITECTURE.md, docs/SECURITY.md.
+
+## Ideas / next steps
+
+- Live-test a few real rounds with Gemini (chat path not yet exercised live; decide path is).
+- Blind increases so games end; a "fast forward" when the human has folded.
+- Optional: move the engine server-side so card data isn't visible in dev tools.

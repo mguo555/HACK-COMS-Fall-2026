@@ -1,59 +1,106 @@
-# WillaibeatUs
+# Will AI Beat Us?
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.29.
+A browser poker game for HackComs Fall 2026. You play No-Limit Texas Hold'em against four AI
+characters run by Google Gemini. The twist: every round you can send each of them **one private
+message** to talk them into folding, or bait them into raising. Each character falls for
+different things, and after every round you can read what they were thinking.
 
-## Development server
+## Quick start
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+You need Node.js 20.19+ or 22.12+ and a Gemini API key from
+[Google AI Studio](https://aistudio.google.com/) (the free tier is enough).
 
 ```bash
-ng generate component component-name
+npx npm@11 install                     # npm 10 crashes on this lockfile; npm 11 works
+cp .env.example .env && chmod 600 .env # then paste your key after GEMINI_API_KEY=
+npm run dev                            # API server on :3001 + game on :4200
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Open <http://localhost:4200>. The page and the server log both say whether Gemini is connected.
 
-```bash
-ng generate --help
+No key? The game still runs in **offline mode**: the bots use simple built-in poker logic and
+canned chat replies.
+
+## How to play
+
+- Everyone starts with 1000 chips. Blinds are 10/20. Last player with chips wins.
+- On your turn: Fold, Check/Call, or Raise (presets for min, half pot, pot, all-in, or the slider).
+- In the **Table talk** panel, pick a player and send one message (up to 280 characters) per
+  round. Only that player sees it. Their reply comes back in character.
+- When the round ends, **What they were thinking** shows each bot's reasoning, including whether
+  your message changed their mind.
+
+## The AI players
+
+| Player                      | Plays                  | Weak spot                                                         |
+| --------------------------- | ---------------------- | ----------------------------------------------------------------- |
+| Viktor "The Iceberg" Petrov | Tight and aggressive   | Ignores emotion. Only a sharp argument about the cards moves him. |
+| Rosie Delgado               | Loose, likes to call   | Soft-hearted. Kindness works; rudeness makes her stubborn.        |
+| "Big Tony" Benedetto        | Loose, bluffs a lot    | All ego. Dare him and he raises; tell him to fold and he won't.   |
+| Nate Kim                    | Tight, folds too often | Easily spooked. Intimidation makes him fold.                      |
+
+Their personalities live in `server/personas.mjs` (prompt text) and `src/app/ai/personas.ts`
+(names, colors, hints). Keep the `id`s in sync if you add or rename one.
+
+## Using as little of the free tier as possible
+
+The Gemini key is free tier, so the game makes few calls:
+
+- Chat replies always use Gemini. A bot's **moves** use Gemini only in rounds where you messaged
+  that bot; otherwise the built-in logic plays (set `aiDecisions: 'always'` in
+  `src/app/game/game.config.ts` to change this).
+- The server caps Gemini at 8 calls a minute and 200 a day by default. The count survives
+  restarts. It backs off for 30 seconds when Google is busy, and stops if the key is rejected.
+- A typical call is about 900 tokens in and 70 out, and returns in about a second.
+
+Details: [`docs/SECURITY.md`](docs/SECURITY.md).
+
+## Settings
+
+In `.env` (see `.env.example`):
+
+| Variable                  | Default                 | What it does                                |
+| ------------------------- | ----------------------- | ------------------------------------------- |
+| `GEMINI_API_KEY`          | (none)                  | Your key. Required for AI play.             |
+| `POKER_GEMINI_MODEL`      | `gemini-3.5-flash-lite` | Gemini model to use.                        |
+| `POKER_GEMINI_PER_MINUTE` | `8`                     | Max Gemini calls per minute (0 = no limit). |
+| `POKER_GEMINI_PER_DAY`    | `200`                   | Max Gemini calls per day (0 = no limit).    |
+| `POKER_GEMINI_TIMEOUT_MS` | `45000`                 | Give up on a Gemini call after this long.   |
+| `PORT` / `HOST`           | `3001` / `127.0.0.1`    | Where the API server listens.               |
+
+In `src/app/game/game.config.ts`: stacks, blinds, the message rule (`messageLimit`: once per
+round or once per betting street), message length, bot pacing and `aiDecisions`.
+
+## Scripts
+
+| Command          | What it does                                                            |
+| ---------------- | ----------------------------------------------------------------------- |
+| `npm run dev`    | API server + Angular dev server together                                |
+| `npm run server` | API server only                                                         |
+| `npm start`      | Angular dev server only (offline mode unless the API server is running) |
+| `npm test`       | Poker engine unit tests (Vitest)                                        |
+| `npm run build`  | Production build into `dist/`                                           |
+
+## Project layout
+
+```
+src/app/poker/       Poker engine (plain TypeScript): cards, hand evaluator, win odds, table rules
+src/app/ai/          Character data, API client, offline fallback bot
+src/app/game/        GameService: turns, chat rule, bot views; game.config.ts
+src/app/components/  Table, seats, cards, action bar, chat, log, result panel, start screen
+server/              Node API server: Gemini calls, prompts, usage caps, .env loading
+docs/                Architecture and security notes
 ```
 
-## Building
+How the pieces fit together: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-To build the project run:
+## Troubleshooting
 
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- **"Offline mode" with a reason on the start screen.** The reason says what's wrong: no key in
+  `.env`, the key was rejected, the model isn't available to your key, or the API server isn't
+  running (use `npm run dev`, not `npm start`).
+- **A yellow note during play** ("Gemini hit its limit..."). A usage cap was reached. Bots keep
+  playing with the built-in logic. The per-minute cap clears within a minute; the daily one
+  resets at midnight.
+- **`npm install` fails with "Cannot read properties of null (reading 'edgesOut')".** That's an
+  npm 10 bug. Use `npx npm@11 install`.
