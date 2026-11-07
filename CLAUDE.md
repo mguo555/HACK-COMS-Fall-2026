@@ -77,6 +77,8 @@ See `docs/ARCHITECTURE.md`. Quick map:
   replies ("warmer"/"colder"). Saved per name in `.data/history.json`.
 - Busted AIs are replaced from the shuffled cast; blinds rise every 8 rounds.
 - Whispers between humans never reach the AIs and cost no Gemini calls.
+- Inclusivity: AIs speak each player's chosen language and use their pronouns; banter never
+  targets identity (`RESPECT_RULE` in `server/prompts.ts`). UI text stays English for now.
 
 ## Progress log
 
@@ -90,8 +92,12 @@ See `docs/ARCHITECTURE.md`. Quick map:
   human-to-human whispers. Verified with a 23-check server smoke test and a two-browser
   Playwright run (offline, 0 Gemini calls).
 
+- 2026-11-07: Inclusivity pass. Per-player language (20, `src/app/shared/languages.ts`) for
+  whispers and reactions; table language when all humans share one. Optional pronouns used in
+  prompts and shown in the lobby. Respect rule in every prompt. Four-color deck + larger text
+  (`DisplaySettings`, saved per browser). "How to play" dialog with hand rankings.
+
 ## Ideas / next steps
 
-- Inclusivity pass: languages for AI replies, pronouns, respectful-banter rule, four-color deck,
-  larger text, hand-rankings guide (in progress).
+- Translate the UI itself (only the AI conversation is localized today).
 - Live-test whisper and announcement prompts with a few real Gemini calls.

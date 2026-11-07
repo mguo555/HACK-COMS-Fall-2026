@@ -35,7 +35,12 @@
   @if (selected(); as sel) {
     <div class="profile" [style.--accent]="sel.color">
       @if (sel.isHuman) {
-        <strong>{{ sel.player.name }}</strong>
+        <strong>
+          {{ sel.player.name }}
+          @if (pronounsOf(sel.player.id); as pr) {
+            <span class="feel">({{ pr }})</span>
+          }
+        </strong>
         <span class="hint">Another human at the table. No AI sees what you two say.</span>
       } @else {
         <strong>{{ sel.persona?.fullName }}</strong>

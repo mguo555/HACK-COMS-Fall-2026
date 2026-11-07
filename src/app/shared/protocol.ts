@@ -26,6 +26,16 @@ export interface RoomPlayer {
   name: string;
   connected: boolean;
   isHost: boolean;
+  /** Optional, shown next to the name and used by the AIs. */
+  pronouns: string;
+  /** Language code the AIs use with this player (see languages.ts). */
+  language: string;
+}
+
+/** How a player wants to be addressed. Sent when creating or joining a table. */
+export interface PlayerProfile {
+  pronouns?: string;
+  language?: string;
 }
 
 /** A private message in your thread with one other player (an AI or another human). */
@@ -147,10 +157,12 @@ export interface PlayerSummary {
 export interface CreateRoomRequest {
   name: string;
   settings: Partial<RoomSettings>;
+  profile?: PlayerProfile;
 }
 
 export interface JoinRoomRequest {
   name: string;
+  profile?: PlayerProfile;
 }
 
 export interface JoinRoomResponse {

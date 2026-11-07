@@ -1,7 +1,12 @@
 import { Injectable, computed, signal } from '@angular/core';
 import type { PlayerAction } from '../poker/engine';
 import type { PublicPersona } from '../shared/personas';
-import type { ClientState, JoinRoomResponse, RoomSettings } from '../shared/protocol';
+import type {
+  ClientState,
+  JoinRoomResponse,
+  PlayerProfile,
+  RoomSettings,
+} from '../shared/protocol';
 
 const SESSION_KEY = 'willaibeatus.session';
 
@@ -74,14 +79,26 @@ export class GameClient {
     }
   }
 
-  async createTable(name: string, settings: Partial<RoomSettings>): Promise<void> {
-    const res = await this.request<JoinRoomResponse>('/api/rooms', { name, settings }, false);
+  async createTable(
+    name: string,
+    settings: Partial<RoomSettings>,
+    profile: PlayerProfile,
+  ): Promise<void> {
+    const res = await this.request<JoinRoomResponse>(
+      '/api/rooms',
+      { name, settings, profile },
+      false,
+    );
     if (res) this.connect(res.code, res.token);
   }
 
-  async joinTable(code: string, name: string): Promise<void> {
+  async joinTable(code: string, name: string, profile: PlayerProfile): Promise<void> {
     const clean = code.trim().toUpperCase();
-    const res = await this.request<JoinRoomResponse>(`/api/rooms/${clean}/join`, { name }, false);
+    const res = await this.request<JoinRoomResponse>(
+      `/api/rooms/${clean}/join`,
+      { name, profile },
+      false,
+    );
     if (res) this.connect(res.code, res.token);
   }
 

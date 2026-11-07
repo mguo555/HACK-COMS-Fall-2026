@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { GAME_CONFIG } from '../../game/game.config';
 import { GameClient } from '../../game/game-client';
+import { languageByCode } from '../../shared/languages';
 
 /** Waiting room: the table code to share, who has joined, and the host's Start button. */
 @Component({
@@ -24,6 +25,10 @@ import { GameClient } from '../../game/game-client';
               <li>
                 <span class="dot" [class.on]="p.connected"></span>
                 {{ p.name }}
+                @if (p.pronouns) {
+                  <span class="muted">({{ p.pronouns }})</span>
+                }
+                <span class="pill">{{ lang(p.language) }}</span>
                 @if (p.id === s.you.id) {
                   <span class="muted">(you)</span>
                 }
@@ -155,6 +160,10 @@ export class Lobby {
     const s = this.client.state();
     return s ? Math.min(s.settings.aiSeats, GAME_CONFIG.maxSeats - s.players.length) : 0;
   });
+
+  protected lang(code: string): string {
+    return languageByCode(code).label;
+  }
 
   protected async copy(): Promise<void> {
     try {

@@ -42,7 +42,7 @@ const routes: [method: string, pattern: RegExp, handler: Handler][] = [
     /^\/api\/rooms$/,
     (_req, _res, body) => {
       const room = createRoom(body['settings'] as never);
-      const human = room.join(String(body['name'] ?? ''));
+      const human = room.join(String(body['name'] ?? ''), body['profile'] as never);
       return { code: room.code, token: human.token };
     },
   ],
@@ -52,7 +52,7 @@ const routes: [method: string, pattern: RegExp, handler: Handler][] = [
     /^\/api\/rooms\/([A-Za-z]{4})\/join$/,
     (_req, _res, body, [code]) => {
       const room = getRoom(code);
-      const human = room.join(String(body['name'] ?? ''));
+      const human = room.join(String(body['name'] ?? ''), body['profile'] as never);
       return { code: room.code, token: human.token };
     },
   ],

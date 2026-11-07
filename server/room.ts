@@ -15,11 +15,13 @@ import {
   SeatConfig,
   TableState,
 } from '../src/app/poker/engine';
+import { languageByCode } from '../src/app/shared/languages';
 import { CHARACTERS, Persona, geminiPlayer, toPublic } from '../src/app/shared/personas';
 import type {
   Announcement,
   BotThought,
   ChatMessage,
+  PlayerProfile,
   ClientState,
   Leaning,
   FeelingLabel,
@@ -45,6 +47,9 @@ interface Human {
   name: string;
   token: string;
   isHost: boolean;
+  pronouns: string;
+  /** Language code (languages.ts). */
+  language: string;
   persuasions: number;
   roundsPlayed: number;
 }
@@ -157,7 +162,7 @@ export class Room {
 
   // --- Joining ---------------------------------------------------------------------------------
 
-  join(rawName: string): Human {
+  join(rawName: string, profile?: PlayerProfile): Human {
     const name = cleanName(rawName);
     if (!name) throw new RoomError(400, 'Pick a name first');
     if (this.phase !== 'lobby') throw new RoomError(409, 'That game has already started');
@@ -170,6 +175,8 @@ export class Room {
       name,
       token: randomBytes(18).toString('base64url'),
       isHost: this.humans.length === 0,
+      pronouns: cleanPronouns(profile?.pronouns),
+      language: languageByCode(profile?.language).code,
       persuasions: 0,
       roundsPlayed: 0,
     };
@@ -369,7 +376,7 @@ export class Room {
       ctx.chats.some((c) => c.turns.some((t) => t.from === 'human' && t.round === round)) ||
       ctx.announcements.some((a) => a.round === round);
     const useAi = GAME_CONFIG.aiDecisions === 'always' || heardMessage;
-    const { value: decision, notice } = await ai.decide(persona, this.humanNames(), ctx, useAi);
+    const { value: decision, notice } = await ai.decide(persona, this.tableVoice(), ctx, useAi);
     if (notice) this.notice = notice;
     if (!decision.offline) void this.refreshAiStatus();
 
@@ -551,7 +558,7 @@ export class Room {
     this.broadcast();
 
     const task = ai
-      .chatReply(persona, human.name, this.humanNames(), ctx, text)
+      .chatReply(persona, human.name, this.voiceFor(human), ctx, text)
       .then(({ value, notice }) => {
         Object.assign(reply, {
           text: value.text,
@@ -607,7 +614,7 @@ export class Room {
       .filter((p) => !p.isHuman && !p.folded && !p.busted)
       .map((p) => ({ persona: this.personas.get(p.id)!, ctx: this.contextFor(p.id) }));
     const task = ai
-      .reactions(listeners, human.name, text)
+      .reactions(listeners, human.name, text, this.voiceFor(human))
       .then(({ value, notice }) => {
         announcement.reactions = value.reactions;
         announcement.offline = value.offline;
@@ -825,6 +832,8 @@ export class Room {
         name: h.name,
         isHost: h.isHost,
         connected: this.isConnected(h),
+        pronouns: h.pronouns,
+        language: h.language,
       })),
       personas: Object.fromEntries([...this.personas].map(([id, p]) => [id, toPublic(p)])),
       table: t,
@@ -898,8 +907,16 @@ export class Room {
     this.broadcast();
   }
 
-  private humanNames(): string[] {
-    return this.humans.map((h) => h.name);
+  /** Everyone's names and pronouns, in the language the whole table shares (else English). */
+  private tableVoice(): ai.TableVoice {
+    const codes = new Set(this.humans.map((h) => h.language));
+    const language = codes.size === 1 ? languageByCode([...codes][0]).name : 'English';
+    return { humans: this.humans.map((h) => ({ name: h.name, pronouns: h.pronouns })), language };
+  }
+
+  /** Same, but in one player's own language (for their whispers and announcements). */
+  private voiceFor(human: Human): ai.TableVoice {
+    return { ...this.tableVoice(), language: languageByCode(human.language).name };
   }
 
   private seatOf(human: Human): PlayerState | undefined {
@@ -977,6 +994,14 @@ export function cleanName(raw: unknown): string {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 24);
+}
+
+function cleanPronouns(raw: unknown): string {
+  return String(raw ?? '')
+    .replace(/[^\p{L} /'-]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 20);
 }
 
 function cleanMessage(raw: unknown): string {

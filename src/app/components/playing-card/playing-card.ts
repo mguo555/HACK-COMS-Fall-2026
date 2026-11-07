@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { Card, cardLabel, isRed, rankLabel, suitSymbol } from '../../poker/cards';
+import { Card, cardLabel, rankLabel, suitSymbol } from '../../poker/cards';
 
 /** One playing card, face up or face down. */
 @Component({
@@ -8,7 +8,7 @@ import { Card, cardLabel, isRed, rankLabel, suitSymbol } from '../../poker/cards
   host: {
     '[attr.data-size]': 'size()',
     '[class.face-down]': 'faceDown() || !card()',
-    '[class.red]': 'red()',
+    '[attr.data-suit]': 'faceDown() ? null : card()?.suit',
     '[class.highlight]': 'highlight()',
     '[class.dim]': 'dim()',
     role: 'img',
@@ -49,8 +49,17 @@ import { Card, cardLabel, isRed, rankLabel, suitSymbol } from '../../poker/cards
     :host([data-size='lg']) {
       --w: 62px;
     }
-    :host(.red) {
-      color: var(--card-red);
+    :host([data-suit='h']) {
+      color: var(--suit-h);
+    }
+    :host([data-suit='d']) {
+      color: var(--suit-d);
+    }
+    :host([data-suit='c']) {
+      color: var(--suit-c);
+    }
+    :host([data-suit='s']) {
+      color: var(--suit-s);
     }
     :host(.face-down) {
       background: repeating-linear-gradient(45deg, #9b2335 0 4px, #b52b40 4px 8px);
@@ -109,10 +118,6 @@ export class PlayingCard {
   protected readonly suit = computed(() => {
     const c = this.card();
     return c ? suitSymbol(c.suit) : '';
-  });
-  protected readonly red = computed(() => {
-    const c = this.card();
-    return !!c && !this.faceDown() && isRed(c);
   });
   protected readonly label = computed(() => {
     const c = this.card();

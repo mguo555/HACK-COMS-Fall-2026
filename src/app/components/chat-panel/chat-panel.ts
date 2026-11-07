@@ -134,6 +134,10 @@ export class ChatPanel {
     });
   }
 
+  protected pronounsOf(id: string): string {
+    return this.client.state()?.players.find((p) => p.id === id)?.pronouns ?? '';
+  }
+
   protected unread(id: string): number {
     return Math.max(0, (this.received()[id] ?? 0) - (this.seen()[id] ?? 0));
   }

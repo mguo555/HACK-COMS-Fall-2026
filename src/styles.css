@@ -21,11 +21,25 @@
   --info: #6aa8ff;
   --card-red: #d42a3a;
   --card-black: #1b1f2a;
+  --suit-h: var(--card-red);
+  --suit-d: var(--card-red);
+  --suit-c: var(--card-black);
+  --suit-s: var(--card-black);
   --radius: 12px;
   --shadow: 0 10px 30px rgb(0 0 0 / 35%);
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
   --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   color-scheme: dark;
+}
+
+/* Accessibility options (DisplaySettings). Four-color deck: diamonds blue, clubs green. */
+:root[data-deck='four'] {
+  --suit-d: #1d63d1;
+  --suit-c: #128a3c;
+}
+
+:root[data-text='large'] body {
+  zoom: 1.15;
 }
 
 *,

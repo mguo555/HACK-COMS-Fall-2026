@@ -48,6 +48,22 @@
             @if (client.connection() === 'lost') {
               <span class="pill warn">Reconnecting…</span>
             }
+            <button class="btn btn-sm btn-ghost" (click)="helpOpen.set(true)">How to play</button>
+            <button
+              class="btn btn-sm btn-ghost"
+              [attr.aria-pressed]="display.fourColorDeck()"
+              title="Diamonds blue, clubs green"
+              (click)="display.fourColorDeck.set(!display.fourColorDeck())"
+            >
+              {{ display.fourColorDeck() ? '4-color deck: on' : '4-color deck: off' }}
+            </button>
+            <button
+              class="btn btn-sm btn-ghost"
+              [attr.aria-pressed]="display.largeText()"
+              (click)="display.largeText.set(!display.largeText())"
+            >
+              {{ display.largeText() ? 'Larger text: on' : 'Larger text: off' }}
+            </button>
             <button class="btn btn-sm btn-ghost" (click)="client.leave()">Leave table</button>
           </div>
         </header>
@@ -79,3 +95,5 @@
     }
   }
 }
+
+<app-how-to-play [(open)]="helpOpen" />

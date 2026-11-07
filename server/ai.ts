@@ -7,6 +7,7 @@ import type { Leaning, Reaction } from '../src/app/shared/protocol';
 // @ts-expect-error plain JS module
 import { GEMINI_MODEL, askGemini, checkGemini, geminiCooldown, geminiLimiter } from './gemini.mjs';
 import {
+  type TableVoice,
   CHAT_SCHEMA,
   DECISION_SCHEMA,
   chatPrompt,
@@ -18,6 +19,8 @@ import {
 
 const ACTIONS = new Set(['fold', 'check', 'call', 'raise']);
 const LEANINGS = new Set(['fold', 'call', 'raise', 'unchanged']);
+
+export type { TableVoice } from './prompts';
 
 export interface AiResult<T> {
   value: T;
@@ -70,14 +73,14 @@ async function attempt(
 
 export async function decide(
   persona: Persona,
-  humanNames: string[],
+  voice: TableVoice,
   ctx: BotContext,
   useAi: boolean,
 ): Promise<AiResult<BotDecision>> {
   const fallback = () => offlineDecision(ctx.view, moodStyle(persona.offline, ctx));
   if (!useAi) return { value: fallback(), notice: null };
   const result = await attempt(`${persona.name}'s move`, `decide:${persona.id}`, () => ({
-    system: systemPrompt(persona, humanNames),
+    system: systemPrompt(persona, voice),
     prompt: decisionPrompt(ctx, persona),
     schema: DECISION_SCHEMA,
   }));
@@ -100,12 +103,12 @@ export async function decide(
 export async function chatReply(
   persona: Persona,
   humanName: string,
-  humanNames: string[],
+  voice: TableVoice,
   ctx: BotContext,
   message: string,
 ): Promise<AiResult<ChatReply>> {
   const result = await attempt(`${persona.name}'s reply`, `chat:${persona.id}`, () => ({
-    system: systemPrompt(persona, humanNames),
+    system: systemPrompt(persona, voice),
     prompt: chatPrompt(ctx, persona, humanName, message),
     schema: CHAT_SCHEMA,
   }));
@@ -163,11 +166,12 @@ export async function reactions(
   bots: { persona: Persona; ctx: BotContext }[],
   announcer: string,
   text: string,
+  voice: TableVoice,
 ): Promise<AiResult<{ reactions: Reaction[]; offline: boolean }>> {
   if (!bots.length) return { value: { reactions: [], offline: false }, notice: null };
   const ids = bots.map((b) => b.persona.id);
   const result = await attempt('the table reactions', 'react', () => {
-    const { system, prompt } = reactionPrompt(bots, announcer, text);
+    const { system, prompt } = reactionPrompt(bots, announcer, text, voice);
     return { system, prompt, schema: reactionSchema(ids) };
   });
   if (!result.ok) {

@@ -46,11 +46,34 @@ h1 {
   color: var(--text);
 }
 
-.name {
-  display: block;
-  margin-bottom: 6px;
+.you {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 10px;
+  max-width: 640px;
+}
+
+.you label {
+  display: grid;
+  gap: 4px;
   font-size: 13px;
   font-weight: 700;
+}
+
+.access {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
 }
 
 .field {
@@ -61,9 +84,9 @@ h1 {
   background: var(--panel-2);
 }
 
-#name {
+.you .field {
   width: 100%;
-  max-width: 340px;
+  min-width: 0;
 }
 
 .memory {
@@ -228,7 +251,8 @@ article p {
     gap: 28px;
     padding: 28px 16px;
   }
-  .choices {
+  .choices,
+  .you {
     grid-template-columns: 1fr;
   }
 }

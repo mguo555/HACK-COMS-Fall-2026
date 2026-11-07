@@ -25,16 +25,44 @@
       </li>
     </ol>
 
-    <label class="name" for="name">Your name</label>
-    <input
-      id="name"
-      class="field"
-      maxlength="24"
-      autocomplete="nickname"
-      placeholder="Player"
-      [value]="name()"
-      (input)="name.set($any($event.target).value)"
-    />
+    <div class="you">
+      <label>
+        Your name
+        <input
+          id="name"
+          class="field"
+          maxlength="24"
+          autocomplete="nickname"
+          placeholder="Player"
+          [value]="name()"
+          (input)="name.set($any($event.target).value)"
+        />
+      </label>
+      <label>
+        Pronouns
+        <input
+          class="field"
+          maxlength="20"
+          list="pronoun-list"
+          placeholder="Optional, e.g. they/them"
+          [value]="pronouns()"
+          (input)="pronouns.set($any($event.target).value)"
+        />
+        <datalist id="pronoun-list">
+          @for (p of pronounSuggestions; track p) {
+            <option [value]="p"></option>
+          }
+        </datalist>
+      </label>
+      <label>
+        AIs talk to you in
+        <select class="field" (change)="language.set($any($event.target).value)">
+          @for (l of languages; track l.code) {
+            <option [value]="l.code" [selected]="l.code === language()">{{ l.label }}</option>
+          }
+        </select>
+      </label>
+    </div>
     @if (remembered() > 0) {
       <p class="memory muted">
         The AIs remember {{ name().trim() }} from {{ remembered() }} earlier
@@ -112,6 +140,26 @@
       <p class="error" role="alert">{{ error }}</p>
     }
 
+    <div class="access">
+      <button class="btn btn-sm" type="button" (click)="helpOpen.set(true)">How to play</button>
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="display.fourColorDeck()"
+          (change)="display.fourColorDeck.set($any($event.target).checked)"
+        />
+        Four-color deck (colorblind friendly)
+      </label>
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="display.largeText()"
+          (change)="display.largeText.set($any($event.target).checked)"
+        />
+        Larger text
+      </label>
+    </div>
+
     <p class="status">
       @if (client.health(); as h) {
         @if (h.enabled) {
@@ -145,3 +193,5 @@
     }
   </section>
 </main>
+
+<app-how-to-play [(open)]="helpOpen" />

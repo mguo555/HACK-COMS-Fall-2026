@@ -53,6 +53,23 @@ the caps below.
   after 45 seconds. Between rounds everyone clicks Next round, or it starts by itself after 15
   seconds.
 
+## For everyone
+
+- **Your language:** pick the language the AIs talk to you in (20 to choose from, including
+  Spanish, Chinese, Hindi, Arabic, Bengali, Tagalog, Swahili, Urdu and Haitian Creole). Your
+  whispers and the reactions to your announcements come back in it. When everyone at a table
+  shares a language, table talk and thoughts use it too.
+- **Your pronouns:** optional. The AIs use them, and the lobby shows them next to your name.
+- **A respectful table:** the AIs keep trash talk about the game. They never mock anyone's race,
+  ethnicity, nationality, gender, sexuality, religion, disability, body, age or accent, and they
+  don't play along if a player tries to bait them.
+- **Display options:** a four-color deck (diamonds blue, clubs green) so suits don't depend on
+  telling red from black, and a larger-text mode. Motion is reduced if your system asks for it.
+- **New to poker?** "How to play" explains the basics, the betting options and every hand, best
+  first, with example cards.
+
+The menus and buttons are in English for now; the AI conversation is in your language.
+
 ## The cast
 
 Each game seats a random lineup, and new AIs rotate in as seats open up:
