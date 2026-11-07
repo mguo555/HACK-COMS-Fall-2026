@@ -1,0 +1,134 @@
+:host {
+  display: block;
+}
+
+.start {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 40px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: clamp(36px, 6vw, 56px);
+  letter-spacing: -1px;
+}
+
+.lede {
+  max-width: 560px;
+  margin: 14px 0 20px;
+  color: #c4ccdb;
+  font-size: 17px;
+}
+
+.rules {
+  display: grid;
+  gap: 8px;
+  max-width: 560px;
+  margin: 0 0 24px;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.rules strong {
+  color: var(--text);
+}
+
+.join label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  max-width: 420px;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.row .btn {
+  min-height: 44px;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 560px;
+  margin-top: 18px;
+  font-size: 13px;
+}
+
+.cast {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+article {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+  color: var(--accent);
+  font-weight: 800;
+}
+
+article h2 {
+  font-size: 16px;
+}
+
+article p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+article .hint {
+  color: var(--accent);
+}
+
+@media (max-width: 880px) {
+  .start {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 32px 16px;
+  }
+}

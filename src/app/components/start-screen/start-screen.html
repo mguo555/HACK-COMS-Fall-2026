@@ -1,0 +1,74 @@
+<main class="start">
+  <section class="intro">
+    <p class="eyebrow">No-Limit Texas Hold'em</p>
+    <h1>Will AI Beat Us?</h1>
+    <p class="lede">
+      You against four AI players, each with their own personality. Before they act, you can send
+      each of them one private message per round. Bluff, flatter, threaten or plead. Whatever gets
+      them to fold, or to raise into your big hand.
+    </p>
+
+    <ol class="rules">
+      <li>
+        Everyone starts with <strong>{{ config.startingStack }}</strong> chips. Blinds are
+        {{ config.smallBlind }}/{{ config.bigBlind }}.
+      </li>
+      <li>
+        You get <strong>one message per player each round</strong>, up to
+        {{ config.maxMessageLength }} characters. They only see what you send them.
+      </li>
+      <li>
+        After each round you can read what every player was thinking, and whether you got to them.
+      </li>
+      <li>Last player with chips wins.</li>
+    </ol>
+
+    <form class="join" (submit)="$event.preventDefault(); start()">
+      <label for="name">Your name</label>
+      <div class="row">
+        <input
+          id="name"
+          maxlength="24"
+          autocomplete="nickname"
+          placeholder="Player"
+          [value]="name()"
+          (input)="name.set($any($event.target).value)"
+        />
+        <button class="btn btn-primary" type="submit">Deal me in</button>
+      </div>
+    </form>
+
+    <p class="status">
+      @switch (ai.status().state) {
+        @case ('checking') {
+          <span class="pill">Checking the AI connection…</span>
+        }
+        @case ('online') {
+          <span class="pill ok"
+            ><span class="dot"></span>Gemini connected ({{ ai.status().model }})</span
+          >
+        }
+        @case ('offline') {
+          <span class="pill warn"><span class="dot"></span>Offline mode</span>
+          <span class="muted">
+            AI is unavailable: {{ ai.status().reason }}. You can still play; the bots use simple
+            built-in logic and canned replies.
+          </span>
+        }
+      }
+    </p>
+  </section>
+
+  <section class="cast" aria-label="Your opponents">
+    @for (p of personas; track p.id) {
+      <article [style.--accent]="p.color">
+        <span class="avatar">{{ p.initials }}</span>
+        <div>
+          <h2>{{ p.fullName }}</h2>
+          <p>{{ p.tagline }}</p>
+          <p class="hint">{{ p.weakSpot }}</p>
+        </div>
+      </article>
+    }
+  </section>
+</main>

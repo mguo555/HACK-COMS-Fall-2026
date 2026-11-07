@@ -1,0 +1,50 @@
+@if (legal(); as legal) {
+  <div class="bar turn">
+    <div class="main">
+      <button class="btn btn-danger" (click)="fold()">Fold</button>
+      <button class="btn" (click)="checkOrCall()">
+        {{ legal.canCheck ? 'Check' : 'Call ' + legal.callAmount }}
+      </button>
+      @if (legal.canRaise) {
+        <button class="btn btn-primary" (click)="raise()">{{ raiseLabel() }}</button>
+      }
+    </div>
+
+    @if (legal.canRaise) {
+      <div class="raise">
+        <div class="presets">
+          @for (p of presets(); track p.label) {
+            <button class="btn btn-sm" [class.active]="raiseTo() === p.to" (click)="setRaise(p.to)">
+              {{ p.label }}
+            </button>
+          }
+        </div>
+        <div class="slider">
+          <input
+            type="range"
+            aria-label="Raise amount"
+            [min]="legal.minRaiseTo"
+            [max]="legal.maxRaiseTo"
+            [step]="1"
+            [value]="raiseTo()"
+            (input)="setRaise($any($event.target).value)"
+          />
+          <input
+            class="amount"
+            type="number"
+            aria-label="Raise to"
+            [min]="legal.minRaiseTo"
+            [max]="legal.maxRaiseTo"
+            [value]="raiseTo()"
+            (change)="setRaise($any($event.target).value)"
+          />
+        </div>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="bar waiting">
+    <span class="typing"><i></i><i></i><i></i></span>
+    {{ waitingText() }}
+  </div>
+}

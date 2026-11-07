@@ -49,11 +49,11 @@ export function createLimiter(name, { perMinute, perDay }) {
       const now = Date.now();
       while (recent.length && now - recent[0] > 60_000) recent.shift();
       if (perMinute > 0 && recent.length >= perMinute) {
-        return `${name} hit its limit of ${perMinute} calls per minute`;
+        return `${name} hit its limit of ${plural(perMinute, 'call')} per minute`;
       }
       const used = usedToday(name);
       if (perDay > 0 && used >= perDay) {
-        return `${name} hit its daily limit of ${perDay} calls`;
+        return `${name} hit its daily limit of ${plural(perDay, 'call')}`;
       }
       recent.push(now);
       usage.counts[name] = used + 1;
@@ -65,6 +65,8 @@ export function createLimiter(name, { perMinute, perDay }) {
     },
   };
 }
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** Reads a non-negative integer from the environment. */
 export function envLimit(variable, fallback) {

@@ -34,7 +34,7 @@ export interface HandResult {
  */
 export function evaluateHand(cards: readonly Card[]): HandResult {
   if (cards.length < 5 || cards.length > 7) {
-    throw new Error(`evaluateHand needs 5–7 cards, got ${cards.length}`);
+    throw new Error(`evaluateHand needs 5 to 7 cards, got ${cards.length}`);
   }
 
   const sorted = cards.slice().sort((a, b) => b.rank - a.rank);

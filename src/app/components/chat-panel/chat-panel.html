@@ -1,0 +1,83 @@
+<section class="panel chat">
+  <header>
+    <h2>Table talk</h2>
+    <p class="muted">
+      One private message to each player {{ perStreet ? 'per betting round' : 'per round' }}. Talk
+      them into folding, or bait them into raising.
+    </p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Choose a player to message">
+    @for (p of personas; track p.id) {
+      @let s = status(p);
+      <button
+        role="tab"
+        class="tab"
+        [class.active]="p.id === selectedId()"
+        [attr.aria-selected]="p.id === selectedId()"
+        [style.--accent]="p.color"
+        (click)="select(p.id)"
+      >
+        <span class="avatar">{{ p.initials }}</span>
+        <span class="who">{{ p.name }}</span>
+        <span class="left" [attr.data-tone]="s.tone">{{ s.text }}</span>
+      </button>
+    }
+  </div>
+
+  <div class="profile" [style.--accent]="selected().color">
+    <strong>{{ selected().fullName }}</strong>
+    <span class="hint">{{ selected().weakSpot }}</span>
+  </div>
+
+  <div class="thread" aria-live="polite">
+    <div>
+      @for (item of thread(); track item.round) {
+        <div class="divider">
+          <span>Round {{ item.round }}</span>
+        </div>
+        @for (m of item.messages; track m.id) {
+          <div class="msg" [class.mine]="m.from === 'human'" [style.--accent]="selected().color">
+            @if (m.pending) {
+              <span class="typing"><i></i><i></i><i></i></span>
+            } @else {
+              {{ m.text }}
+              @if (m.offline) {
+                <span class="canned">canned reply</span>
+              }
+            }
+          </div>
+        }
+      } @empty {
+        <p class="empty muted">
+          Nothing said yet. You get one message to {{ selected().name }} this round, so pick your
+          angle.
+        </p>
+      }
+    </div>
+  </div>
+
+  <form class="composer" (submit)="$event.preventDefault(); send(box)">
+    <textarea
+      #box
+      rows="2"
+      [attr.aria-label]="'Message to ' + selected().name"
+      [placeholder]="blocker() ?? 'Message ' + selected().name + '…'"
+      [disabled]="!!blocker()"
+      [value]="draft()"
+      [maxLength]="maxLength"
+      (input)="setDraft($any($event.target).value)"
+      (keydown)="onKeydown($event, box)"
+    ></textarea>
+    <div class="row">
+      <span class="count muted">{{ draft().length }}/{{ maxLength }}</span>
+      <button
+        class="btn btn-primary btn-sm"
+        type="submit"
+        [disabled]="!!blocker() || !draft().trim()"
+      >
+        Send
+      </button>
+    </div>
+  </form>
+</section>

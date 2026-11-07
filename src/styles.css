@@ -1,1 +1,229 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global tokens and shared building blocks. Component CSS stays small (see angular.json budgets). */
+
+:root {
+  --bg: #0a0f1c;
+  --bg-glow: #13203a;
+  --panel: #111a2c;
+  --panel-2: #172238;
+  --panel-3: #1e2b45;
+  --border: #26344f;
+  --text: #e9edf5;
+  --muted: #8d9ab3;
+  --faint: #5f6c86;
+  --gold: #f2c14e;
+  --gold-dim: #b88d2c;
+  --felt: #12704a;
+  --felt-dark: #0a4430;
+  --rail: #4a2c17;
+  --rail-dark: #2a180b;
+  --danger: #ef5a5f;
+  --success: #3ccf8e;
+  --info: #6aa8ff;
+  --card-red: #d42a3a;
+  --card-black: #1b1f2a;
+  --radius: 12px;
+  --shadow: 0 10px 30px rgb(0 0 0 / 35%);
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
+  --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: radial-gradient(1200px 600px at 50% -10%, var(--bg-glow), transparent 70%), var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-3);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    transform 0.05s,
+    border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: #263655;
+  border-color: #344669;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #f6cd63, var(--gold));
+  border-color: var(--gold-dim);
+  color: #241a02;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffd978, #f4c65a);
+  border-color: var(--gold);
+}
+
+.btn-danger {
+  background: #3a1d24;
+  border-color: #6a2b35;
+  color: #ffc9cc;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #4a2229;
+  border-color: #8a3542;
+}
+
+.btn-ghost {
+  background: transparent;
+}
+
+.btn-sm {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+/* Small rounded labels */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pill.ok {
+  color: var(--success);
+  border-color: #1f5b45;
+  background: #0f2a22;
+}
+
+.pill.warn {
+  color: var(--gold);
+  border-color: #5c4a1e;
+  background: #2a2210;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Animated "…" used for thinking/typing */
+.typing {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.typing i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: blink 1.2s infinite ease-in-out;
+}
+
+.typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Thin scrollbars inside panels */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2b3a58 transparent;
+}

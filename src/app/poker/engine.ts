@@ -60,7 +60,7 @@ export interface HandOutcome {
   summary: string;
 }
 
-export type LogKind = 'round' | 'deal' | 'action' | 'result';
+export type LogKind = 'round' | 'deal' | 'action' | 'result' | 'talk';
 
 export interface LogEntry {
   id: number;
@@ -206,7 +206,7 @@ export class PokerEngine {
     s.smallBlindIndex = headsUp ? s.dealerIndex : this.nextSeat(s.dealerIndex, inGame);
     s.bigBlindIndex = this.nextSeat(s.smallBlindIndex, inGame);
 
-    this.log('round', `Round ${s.round} — ${s.players[s.dealerIndex].name} has the dealer button`);
+    this.log('round', `Round ${s.round}. ${s.players[s.dealerIndex].name} has the dealer button`);
     this.postBlind(s.smallBlindIndex, s.smallBlind, 'small blind');
     this.postBlind(s.bigBlindIndex, s.bigBlind, 'big blind');
     s.currentBet = s.bigBlind;
@@ -282,7 +282,7 @@ export class PokerEngine {
         const to = Math.floor(action.to);
         if (!legal.canRaise) throw new Error(`${p.name} can't raise`);
         if (to < legal.minRaiseTo || to > legal.maxRaiseTo) {
-          throw new Error(`Raise to ${to} is outside ${legal.minRaiseTo}–${legal.maxRaiseTo}`);
+          throw new Error(`Raise to ${to} is outside ${legal.minRaiseTo} to ${legal.maxRaiseTo}`);
         }
         const previousBet = s.currentBet;
         this.commit(p, to - p.streetBet);
@@ -308,6 +308,11 @@ export class PokerEngine {
 
     p.hasActed = true;
     this.advance(index);
+  }
+
+  /** Adds a line said out loud at the table to the log (bots see it as table talk). */
+  addTableTalk(playerId: string, text: string): void {
+    this.log('talk', `${this.player(playerId).name}: "${text}"`, playerId);
   }
 
   // ---------------------------------------------------------------------------
@@ -394,7 +399,7 @@ export class PokerEngine {
     for (const p of live) {
       this.log(
         'result',
-        `${p.name} shows ${p.hole.map(cardLabel).join(' ')} — ${hands[p.id].description}`,
+        `${p.name} shows ${p.hole.map(cardLabel).join(' ')}: ${hands[p.id].description}`,
         p.id,
       );
     }
@@ -414,7 +419,7 @@ export class PokerEngine {
       showdown: false,
       awards: [{ playerId: winner.id, amount }],
       hands: {},
-      summary: `${winner.name} wins ${amount} — everyone else folded`,
+      summary: `${winner.name} wins ${amount}. Everyone else folded`,
     });
   }
 
