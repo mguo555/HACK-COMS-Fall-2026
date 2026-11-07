@@ -21,6 +21,18 @@ Open <http://localhost:4200>. The page and the server log both say whether Gemin
 No key? The game still runs in **offline mode**: the bots use simple built-in poker logic and
 canned chat replies.
 
+## Play from your other devices (Tailscale)
+
+```bash
+npm run dev:tailnet
+```
+
+It prints the addresses to open from any device on your tailnet, for example
+`http://<machine>.<tailnet>.ts.net:4200`. In this mode the game listens only on the machine's
+Tailscale address: other devices on the local Wi-Fi can't reach it, and the API server (with the
+key) still only accepts connections from the same machine. Everyone on your tailnet who plays
+uses your Gemini quota, within the same caps.
+
 ## How to play
 
 - Everyone starts with 1000 chips. Blinds are 10/20. Last player with chips wins.
@@ -73,13 +85,14 @@ round or once per betting street), message length, bot pacing and `aiDecisions`.
 
 ## Scripts
 
-| Command          | What it does                                                            |
-| ---------------- | ----------------------------------------------------------------------- |
-| `npm run dev`    | API server + Angular dev server together                                |
-| `npm run server` | API server only                                                         |
-| `npm start`      | Angular dev server only (offline mode unless the API server is running) |
-| `npm test`       | Poker engine unit tests (Vitest)                                        |
-| `npm run build`  | Production build into `dist/`                                           |
+| Command               | What it does                                                            |
+| --------------------- | ----------------------------------------------------------------------- |
+| `npm run dev`         | API server + Angular dev server together                                |
+| `npm run dev:tailnet` | Same, but reachable from your Tailscale devices (see above)             |
+| `npm run server`      | API server only                                                         |
+| `npm start`           | Angular dev server only (offline mode unless the API server is running) |
+| `npm test`            | Poker engine unit tests (Vitest)                                        |
+| `npm run build`       | Production build into `dist/`                                           |
 
 ## Project layout
 

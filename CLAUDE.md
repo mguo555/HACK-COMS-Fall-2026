@@ -29,13 +29,14 @@ persuasion differently.
 
 ## Commands
 
-| Command          | What it does                                                  |
-| ---------------- | ------------------------------------------------------------- |
-| `npm run dev`    | API server (port 3001) + Angular dev server (port 4200)       |
-| `npm run server` | API server only                                               |
-| `npm start`      | Angular dev server only (bots use offline logic if no server) |
-| `npm test`       | Engine unit tests (Vitest)                                    |
-| `npm run build`  | Production build to `dist/`                                   |
+| Command               | What it does                                                  |
+| --------------------- | ------------------------------------------------------------- |
+| `npm run dev`         | API server (port 3001) + Angular dev server (port 4200)       |
+| `npm run dev:tailnet` | Same, web server bound to this machine's Tailscale IP only    |
+| `npm run server`      | API server only                                               |
+| `npm start`           | Angular dev server only (bots use offline logic if no server) |
+| `npm test`            | Engine unit tests (Vitest)                                    |
+| `npm run build`       | Production build to `dist/`                                   |
 
 Install note: npm 10 crashes on this lockfile ("Cannot read properties of null (reading
 'edgesOut')"). Use npm 11 (`npx npm@11 install ...`), which `package.json` already declares.
@@ -96,6 +97,11 @@ See `docs/ARCHITECTURE.md` for the full picture. Quick map:
     Checked in headless Chrome at 1440px and 390px, offline and against the real server with the
     cap reached (0 Gemini calls).
   - Docs: README (setup, play, settings), docs/ARCHITECTURE.md, docs/SECURITY.md.
+
+- 2026-11-07: Added `npm run dev:tailnet` (`scripts/tailnet.mjs`). Web on the Tailscale IP
+  only, API still loopback, `tailnet` serve config allows `.ts.net` (the `--allowed-hosts` CLI
+  flag is boolean-only). Verified: game loads via IP and MagicDNS name, Wi-Fi address refused.
+  This machine: `main-pc.tail4a2f01.ts.net` / `100.84.41.20`.
 
 ## Ideas / next steps
 

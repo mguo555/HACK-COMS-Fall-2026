@@ -50,6 +50,14 @@ The key is on Google's free tier, so the game is built to make few calls:
 
 When a cap is hit, the bots keep playing with the built-in logic and the page shows a short note.
 
+## Sharing over Tailscale
+
+`npm run dev:tailnet` (`scripts/tailnet.mjs`) binds the web server to the machine's Tailscale IP
+only (`100.x.y.z`), so it is reachable from your tailnet but not from the local Wi-Fi. The API
+server stays on `127.0.0.1`; the web server forwards `/api` to it on the same machine. The
+`tailnet` serve configuration in `angular.json` allows `*.ts.net` hostnames so the MagicDNS name
+works. Anyone on your tailnet can play and use the Gemini quota, within the caps above.
+
 ## Rules for contributors
 
 - Never put the key in anything under `src/`. That code is bundled and shipped to the browser,
