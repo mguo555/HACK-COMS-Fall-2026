@@ -48,7 +48,7 @@ See `docs/ARCHITECTURE.md` for the full picture. Quick map:
 - Keep component CSS under the 4 kB budget warning in `angular.json`; shared styles live in
   `src/styles.css`.
 - Default model `claude-opus-5-5` at effort `low` (latency matters in a turn-based game);
-  override with `CLAUDE_MODEL` / `CLAUDE_EFFORT` in `.env`. Server-side refusal fallbacks are on.
+  override with `POKER_AI_MODEL` / `POKER_AI_EFFORT` in `.env`. Server-side refusal fallbacks are on.
 
 ## Decisions
 
