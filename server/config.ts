@@ -11,6 +11,13 @@ import {
   normalizeEmail,
 } from '../src/app/shared/rules';
 
+export interface EmailerConfig {
+  /** The emailer's send endpoint, e.g. https://emailer.aceiq.ca/send-email */
+  url: string;
+  /** Sent as a Bearer token, for when the emailer starts checking one. */
+  key: string | null;
+}
+
 export interface SmtpConfig {
   host: string;
   port: number;
@@ -30,7 +37,9 @@ export interface Config {
   emailRules: EmailRules;
   /** Account emails (see accountEmail) that can use the mod queue. */
   admins: Set<string>;
-  /** Null means sign-in codes are printed to the server console instead of emailed. */
+  /** How sign-in codes get emailed: the emailer service first, then SMTP. With neither, they're
+   * printed to the server console. */
+  emailer: EmailerConfig | null;
   smtp: SmtpConfig | null;
   mailFrom: string;
   membersOnly: boolean;
@@ -83,6 +92,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       username: usernamePattern ? new RegExp(usernamePattern) : null,
     },
     admins: new Set((list('ADMIN_EMAILS') ?? []).map((e) => accountEmail(normalizeEmail(e)))),
+    emailer: value('EMAILER_URL')
+      ? { url: value('EMAILER_URL')!, key: value('EMAILER_KEY') ?? null }
+      : null,
     smtp,
     mailFrom: value('MAIL_FROM') ?? `TheDailyStalk <${smtp?.user || 'no-reply@localhost'}>`,
     membersOnly: value('MEMBERS_ONLY') !== 'false',

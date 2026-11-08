@@ -17,8 +17,14 @@ app.server.listen(config.port, config.host, () => {
   console.log(`[server] listening on http://${config.host}:${config.port}`);
   console.log(`[server] data in ${config.dataDir}`);
   if (config.staticDir) console.log(`[server] serving the site from ${config.staticDir}`);
-  if (!config.smtp) {
-    console.log('[server] no SMTP set up: sign-in codes will print here instead of being emailed');
+  if (config.emailer) {
+    console.log(
+      `[server] sign-in codes go out through the emailer at ${new URL(config.emailer.url).host}`,
+    );
+  } else if (config.smtp) {
+    console.log(`[server] sign-in codes go out over SMTP (${config.smtp.host})`);
+  } else {
+    console.log('[server] no email set up: sign-in codes will print here instead of being emailed');
   }
   if (!config.admins.size)
     console.log('[server] no ADMIN_EMAILS set: nobody can use the mod queue');

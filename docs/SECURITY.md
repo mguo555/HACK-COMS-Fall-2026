@@ -59,7 +59,10 @@
 
 ## Secrets
 
-- `.env` (SMTP password) is git-ignored and read only by the server. The server warns at startup
+- Sign-in codes go out through the team's emailer service (`EMAILER_URL`) over HTTPS, or SMTP.
+  The emailer currently accepts requests from anyone; giving it a shared key and setting
+  `EMAILER_KEY` here (sent as a Bearer token) would stop others from sending mail through it.
+- `.env` (SMTP password or emailer key) is git-ignored and read only by the server. The server warns at startup
   if other users on the machine can read it.
 - `.data/` (database and photos) is git-ignored. Back it up, and treat it as private: it has
   every student's email.

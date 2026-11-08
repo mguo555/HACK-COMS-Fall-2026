@@ -40,7 +40,7 @@ The previous project, "Will AI Beat Us?" (Gemini poker), is archived on branch
 | `npm run deploy -- user@host 5001` | Docker deploy over SSH (`scripts/deploy.sh`)              |
 
 Install with npm 11 (`npx npm@11 install`); npm 10 crashes on this lockfile ("edgesOut").
-Without SMTP in `.env`, sign-in codes print to the server console.
+Without `EMAILER_URL` or SMTP in `.env`, sign-in codes print to the server console.
 Gotcha: kill servers by port, `kill $(lsof -t -i:3001 -sTCP:LISTEN)`; `pkill -f` matches its own
 shell. Run `node_modules/.bin/tsx` directly for background servers.
 
@@ -79,6 +79,8 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   sent to the owner (`calendar` in the profile response).
 - Feed is masonry: photos keep their shape, clamped between 3:4 and 4:3. Vines fill the side
   margins only on screens wider than 1220px.
+- Sign-in emails go through the team's emailer (`EMAILER_URL=https://emailer.aceiq.ca/send-email`,
+  `server/mail.ts`). It writes each extra JSON field as a "name: value" line under "Refer Page:".
 - Public at https://stalk.photo through a Cloudflare Tunnel (container `stalk-tunnel` on the
   homelab, token in `~/thedailystalk/tunnel.env`), not DDNS: the home IP changes daily and the
   tunnel needs no open ports. Server `.env` has `PUBLIC_URL=https://stalk.photo`, `TRUST_PROXY=true`.
@@ -94,11 +96,11 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   headless Chrome against a seeded six-day test server.
 - 2026-11-07: Dockerfile + `scripts/deploy.sh`. Deployed to the homelab (saksham@100.91.45.86,
   Ubuntu 24.04) on port 5001; data in `~/thedailystalk/data` there. Then a Cloudflare Tunnel
-  for stalk.photo; rate limits read `CF-Connecting-IP`.
+  for stalk.photo; rate limits read `CF-Connecting-IP`. Codes now emailed via emailer.aceiq.ca.
 
 ## Ideas / next steps
 
-- Set up SMTP; pick admins.
+- Pick admins. Ask the emailer's owner to require a key (`EMAILER_KEY`).
 - Account deletion (delete all my photos and my email).
 - Client-side downscaling before upload for slow connections; HEIC support on desktop.
 - Maybe notifications or a reminder email when a new theme drops.

@@ -48,10 +48,9 @@ on your Tailscale network.
 
 ## Running it for real
 
-1. Copy `.env.example` to `.env` (`chmod 600 .env`) and set up SMTP so codes get emailed. Any
-   SMTP account works. A Gmail account with an
-   [app password](https://myaccount.google.com/apppasswords) is the quickest. RIT's Outlook may
-   put the first few emails in junk.
+1. Copy `.env.example` to `.env` (`chmod 600 .env`) and set up email so codes get sent. Either
+   point `EMAILER_URL` at the team's emailer service (`https://emailer.aceiq.ca/send-email`) or
+   fill in an SMTP account. RIT's Outlook may put the first few emails in junk.
 2. Set `ADMIN_EMAILS` to the RIT emails of whoever moderates, and `PUBLIC_URL` to the site's
    address.
 3. `npm run build`, then `npm run server`. The server serves the site and the API on one port
