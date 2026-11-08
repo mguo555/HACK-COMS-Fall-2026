@@ -6,7 +6,7 @@ const AVATAR_COLORS = ['#5f8f4e', '#c4683f', '#b8892a', '#4f8a83', '#9a6b9c', '#
 /** The same handle always gets the same color. */
 export function handleColor(handle: string): string {
   let hash = 0;
-  for (const ch of handle) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  for (const ch of handle.toLowerCase()) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 

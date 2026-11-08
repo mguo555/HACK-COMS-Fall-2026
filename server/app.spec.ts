@@ -7,7 +7,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { addDays, dayKey } from '../src/app/shared/days';
-import type { Board, Profile, SessionInfo } from '../src/app/shared/protocol';
+import type { Board, Me, Profile, SessionInfo } from '../src/app/shared/protocol';
 import { themeFor } from '../src/app/shared/themes';
 import { App, createApp } from './app';
 import { loadConfig } from './config';
@@ -139,9 +139,16 @@ describe('signing in', () => {
     expect(
       (await call('POST', '/api/auth/handle', { cookie: fern, json: { handle: 'a b' } })).status,
     ).toBe(400);
-    expect(
-      (await call('POST', '/api/auth/handle', { cookie: fern, json: { handle: '@Fern' } })).status,
-    ).toBe(200);
+    const named = await call<{ user: Me }>('POST', '/api/auth/handle', {
+      cookie: fern,
+      json: { handle: '@Fern' },
+    });
+    expect(named.body.user.handle).toBe('Fern'); // capitals are kept
+    const renamed = await call<{ user: Me }>('POST', '/api/auth/handle', {
+      cookie: fern,
+      json: { handle: 'fern' },
+    });
+    expect(renamed.body.user.handle).toBe('fern');
   });
 
   it('treats g.rit.edu and +tags as the same account', async () => {
@@ -153,6 +160,13 @@ describe('signing in', () => {
       json: { handle: 'fern' },
     });
     expect(taken.status).toBe(409);
+    const otherCase = await call('POST', '/api/auth/handle', {
+      cookie: moss,
+      json: { handle: 'FERN' },
+    });
+    expect(otherCase.status).toBe(409);
+    const profile = await call<Profile>('GET', '/api/users/FERN', { cookie: moss });
+    expect(profile.body.handle).toBe('fern');
   });
 });
 

@@ -80,8 +80,9 @@ export class Store {
     return this.one('SELECT * FROM users WHERE email = $1', [email]);
   }
 
+  /** Ignores case: /u/fern finds Fern. */
   userByHandle(handle: string): Promise<UserRow | undefined> {
-    return this.one('SELECT * FROM users WHERE handle = $1', [handle]);
+    return this.one('SELECT * FROM users WHERE LOWER(handle) = LOWER($1)', [handle]);
   }
 
   /** Finds or creates the account for an email (two people can't race into two accounts). */

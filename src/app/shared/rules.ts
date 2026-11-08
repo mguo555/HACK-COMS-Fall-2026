@@ -68,15 +68,16 @@ const RESERVED_HANDLES = new Set([
   'undefined',
 ]);
 
+/** Names keep the capitals people type, but "Fern" and "fern" count as the same name. */
 export function normalizeHandle(raw: string): string {
-  return raw.trim().replace(/^@/, '').toLowerCase();
+  return raw.trim().replace(/^@/, '');
 }
 
 /** Why a handle can't be used, or null if it's fine. Expects a normalized handle. */
 export function handleProblem(handle: string): string | null {
   if (handle.length < HANDLE_MIN) return `At least ${HANDLE_MIN} characters.`;
   if (handle.length > HANDLE_MAX) return `${HANDLE_MAX} characters max.`;
-  if (!/^[a-z0-9_]+$/.test(handle)) return 'Letters, numbers and underscores only.';
-  if (RESERVED_HANDLES.has(handle)) return 'That name is taken.';
+  if (!/^[A-Za-z0-9_]+$/.test(handle)) return 'Letters, numbers and underscores only.';
+  if (RESERVED_HANDLES.has(handle.toLowerCase())) return 'That name is taken.';
   return null;
 }

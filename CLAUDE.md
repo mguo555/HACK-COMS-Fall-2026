@@ -75,7 +75,9 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
 - Members only by default (`MEMBERS_ONLY`): photos need sign-in. Theme is visible to everyone.
 - Can't like your own photo. 3 reports hide a photo until a mod decides; "keep" marks it reviewed.
 - Uploads re-encoded to WebP (2048px + 720px thumb), EXIF stripped, animated images refused.
-- Handles: 3 to 20 of `a-z0-9_`, changeable up to 3 times a day.
+- Handles: 3 to 20 of `A-Za-z0-9_`, changeable up to 3 times a day ("Change name" on your
+  own profile; a taken name doesn't use up a change). Capitals are kept for display, but
+  uniqueness and `/u/:handle` lookups ignore case (`users_handle_lower` index, migration 2).
 - Photo of the day = the day's most liked photo (needs at least 1 like; earliest wins a tie).
   Worked out in the browser from the board, so it updates as people like.
 - Profile calendar: posted days show that day's photo. Deleted and mod-removed days are only
@@ -119,6 +121,10 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   `up -d --no-deps app`, since `restart` keeps old env). Info button (ⓘ) in the header opens
   "How it works" (`ui/how-it-works.ts`); it also opens once after someone picks their name.
   Header shows only the sprout under 420px so the menu fits.
+
+- 2026-11-08: Pushed `feature/daily-stalk` to `main` (fast-forward). Nov 8 theme changed to
+  "nature on campus" (live `days` row updated, and pinned in `themes.ts`). Names can have
+  capitals and can be changed from your profile.
 
 ## Ideas / next steps
 

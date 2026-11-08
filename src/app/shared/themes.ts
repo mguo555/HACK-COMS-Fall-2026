@@ -69,6 +69,7 @@ export const THEMES: readonly string[] = [
 ];
 
 export const PINNED: Readonly<Record<string, string>> = {
+  '2026-11-08': 'nature on campus',
   '2026-11-26': "something you're thankful for",
   '2026-12-31': 'your last photo of the year',
   '2027-01-01': 'your first photo of the year',

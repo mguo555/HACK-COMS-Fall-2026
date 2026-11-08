@@ -19,6 +19,36 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.rename {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rename input {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.rename input:focus {
+  outline: none;
+  border-color: var(--leaf);
+}
+
+.hint,
+.who .error {
+  margin-top: 6px;
+  font-size: 14px;
+}
+
 .stats {
   display: flex;
   flex-wrap: wrap;
@@ -58,6 +88,14 @@ h1 {
   .side {
     width: 100%;
     margin-top: 0;
+  }
+
+  .side:empty {
+    display: none;
+  }
+
+  .rename input {
+    flex-basis: 100%;
   }
 }
 

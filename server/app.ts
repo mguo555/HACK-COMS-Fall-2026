@@ -190,6 +190,9 @@ export async function createApp(
     const problem = handleProblem(handle);
     if (problem) throw new HttpError(400, problem);
     if (user.handle === handle) return { user: me(user) };
+    // Checked before the daily limit, so trying a taken name doesn't use up a change.
+    const owner = await store.userByHandle(handle);
+    if (owner && owner.id !== user.id) throw new HttpError(409, 'That name is taken.');
     if (!limiter.take(`handle:${user.id}`, 3, 86_400_000, c.now)) {
       throw new HttpError(429, 'You changed your name a lot today. Try again tomorrow.');
     }

@@ -12,8 +12,43 @@
   <header class="top">
     <app-plant [streak]="p.streak" />
     <div class="who">
-      <h1>{{ p.handle }}</h1>
-      <p class="muted">Joined {{ joined() }}</p>
+      @if (renaming()) {
+        <form class="rename" (submit)="$event.preventDefault(); saveName()">
+          <input
+            #nameInput
+            type="text"
+            name="handle"
+            aria-label="New name"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            [attr.maxlength]="handleMax"
+            [value]="newName()"
+            (input)="newName.set($any($event.target).value)"
+            (keydown.escape)="renaming.set(false)"
+          />
+          <button
+            class="btn btn-primary btn-sm"
+            type="submit"
+            [disabled]="saving() || !newName().trim()"
+          >
+            {{ saving() ? 'Saving...' : 'Save' }}
+          </button>
+          <button class="btn btn-ghost btn-sm" type="button" (click)="renaming.set(false)">
+            Cancel
+          </button>
+        </form>
+        @if (nameError(); as message) {
+          <p class="error" role="alert">{{ message }}</p>
+        } @else {
+          <p class="muted hint">
+            Letters, numbers and underscores. You can change it 3 times a day.
+          </p>
+        }
+      } @else {
+        <h1>{{ p.handle }}</h1>
+        <p class="muted">Joined {{ joined() }}</p>
+      }
       <ul class="stats">
         <li>
           <b>{{ p.streak }}</b> day streak
@@ -28,7 +63,12 @@
     </div>
     <div class="side">
       @if (p.isMe) {
-        <button type="button" class="btn btn-ghost btn-sm" (click)="signOut()">Sign out</button>
+        @if (!renaming()) {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="startRename(p.handle)">
+            Change name
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="signOut()">Sign out</button>
+        }
       } @else if (session.user()?.isAdmin) {
         @if (confirmBan()) {
           <button type="button" class="btn btn-danger btn-sm" (click)="ban(p.handle)">

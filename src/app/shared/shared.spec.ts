@@ -56,7 +56,7 @@ describe('days', () => {
 describe('themes', () => {
   it('starts at the top of the list and wraps around', () => {
     expect(themeFor(THEME_START)).toBe(THEMES[0]);
-    expect(themeFor(addDays(THEME_START, 1))).toBe(THEMES[1]);
+    expect(themeFor(addDays(THEME_START, 2))).toBe(THEMES[2]);
     expect(themeFor(addDays(THEME_START, THEMES.length + 2))).toBe(THEMES[2]);
     expect(themeFor(addDays(THEME_START, -1))).toBe(THEMES.at(-1));
   });
@@ -87,8 +87,9 @@ describe('rules', () => {
   });
 
   it('checks handles', () => {
-    expect(normalizeHandle(' @Fern_42 ')).toBe('fern_42');
-    expect(handleProblem('fern_42')).toBeNull();
+    expect(normalizeHandle(' @Fern_42 ')).toBe('Fern_42');
+    expect(handleProblem('Fern_42')).toBeNull();
+    expect(handleProblem('Admin')).toMatch(/taken/);
     expect(handleProblem('ab')).toMatch(/3/);
     expect(handleProblem('fern!')).toMatch(/Letters/);
     expect(handleProblem('admin')).toMatch(/taken/);

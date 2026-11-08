@@ -134,6 +134,11 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (post_id, user_id)
   );
   `,
+  // Names can have capitals now, but "Fern" and "fern" still can't both exist.
+  `
+  ALTER TABLE users DROP CONSTRAINT IF EXISTS users_handle_key;
+  CREATE UNIQUE INDEX users_handle_lower ON users (LOWER(handle));
+  `,
 ];
 
 /** Brings the schema up to date. Safe to run on every start. */

@@ -1,9 +1,20 @@
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
 import { ApiError, api, errorMessage } from '../api';
 import { Likes, Notice, Session } from '../session';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/days';
+import { HANDLE_MAX, handleProblem, normalizeHandle } from '../shared/rules';
 import type { Post, Profile, ProfilePost } from '../shared/protocol';
 import { Lightbox } from '../ui/lightbox';
 import { Plant } from '../ui/plant';
@@ -33,6 +44,14 @@ export class ProfilePage {
   protected readonly openIndex = signal<number | null>(null);
   protected readonly confirmBan = signal(false);
 
+  // Changing your name (only on your own profile).
+  protected readonly renaming = signal(false);
+  protected readonly newName = signal('');
+  protected readonly nameError = signal<string | null>(null);
+  protected readonly saving = signal(false);
+  protected readonly handleMax = HANDLE_MAX;
+  private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
+
   protected readonly joined = computed(() => {
     const p = this.profile();
     if (!p) return '';
@@ -60,11 +79,14 @@ export class ProfilePage {
       this.session.user();
       untracked(() => this.load(handle));
     });
+    // Select the current name as soon as the box opens, so typing replaces it.
+    effect(() => this.nameInput()?.nativeElement.select());
   }
 
   private async load(handle: string): Promise<void> {
     this.openIndex.set(null);
     this.confirmBan.set(false);
+    this.renaming.set(false);
     try {
       const profile = await api.profile(handle);
       this.profile.set(profile);
@@ -100,6 +122,33 @@ export class ProfilePage {
   protected openById(id: string): void {
     const index = this.posts().findIndex((p) => p.id === id);
     if (index >= 0) this.openIndex.set(index);
+  }
+
+  protected startRename(current: string): void {
+    this.newName.set(current);
+    this.nameError.set(null);
+    this.renaming.set(true);
+  }
+
+  protected async saveName(): Promise<void> {
+    const handle = normalizeHandle(this.newName());
+    const problem = handleProblem(handle);
+    if (problem) {
+      this.nameError.set(problem);
+      return;
+    }
+    this.saving.set(true);
+    try {
+      const { user } = await api.setHandle(handle);
+      // Move to the new address first, so the old one never gets loaded again.
+      await this.router.navigate(['/u', user.handle], { replaceUrl: true });
+      this.session.setUser(user);
+      this.notice.show(`You're ${user.handle} now.`);
+    } catch (error) {
+      this.nameError.set(errorMessage(error));
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   protected async signOut(): Promise<void> {
