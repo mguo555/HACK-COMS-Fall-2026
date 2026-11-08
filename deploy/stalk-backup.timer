@@ -1,0 +1,10 @@
+# Installed by scripts/deploy.sh. Runs stalk-backup.service every night at 4:30.
+[Unit]
+Description=Nightly backup of TheDailyStalk's database
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

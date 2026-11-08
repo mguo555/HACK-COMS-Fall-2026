@@ -28,8 +28,12 @@
     @case ('code') {
       <h1>Check your email</h1>
       <p class="muted">
-        We sent a code to <b>{{ email() }}</b
-        >. It works for 10 minutes. If it's not there, check your junk folder.
+        We sent a 6-digit code to <b>{{ email() }}</b
+        >. It works for 10 minutes.
+      </p>
+      <p class="spam" role="note">
+        <b>Don't see it?</b> It may be in your spam or junk folder. It can also take a minute to
+        show up.
       </p>
       <form (submit)="$event.preventDefault(); verify()">
         <label class="field">

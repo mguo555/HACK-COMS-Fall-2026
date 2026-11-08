@@ -29,8 +29,10 @@ export interface SmtpConfig {
 export interface Config {
   port: number;
   host: string;
-  /** Holds the SQLite database and the uploaded photos. */
+  /** Holds the uploaded photos (and the dev database when DATABASE_URL isn't set). */
   dataDir: string;
+  /** Postgres connection string. Null runs PGlite in <dataDir>/pglite instead (dev and tests). */
+  databaseUrl: string | null;
   timeZone: string;
   /** Where people reach the site, e.g. https://dailystalk.example. Empty in development. */
   publicUrl: string;
@@ -85,6 +87,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     // Loopback only by default. Set HOST=0.0.0.0 behind a reverse proxy.
     host: value('HOST') ?? '127.0.0.1',
     dataDir: path.resolve(value('DATA_DIR') ?? '.data'),
+    databaseUrl: value('DATABASE_URL') ?? null,
     timeZone: value('TIME_ZONE') ?? DEFAULT_TIME_ZONE,
     publicUrl: (value('PUBLIC_URL') ?? '').replace(/\/$/, ''),
     emailRules: {

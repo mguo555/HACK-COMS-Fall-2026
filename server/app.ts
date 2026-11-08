@@ -20,7 +20,6 @@
 import { mkdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import http from 'node:http';
-import path from 'node:path';
 import { addDays, dayKey, isDayKey, startOfDay, streakLength } from '../src/app/shared/days';
 import type {
   Board,
@@ -38,6 +37,7 @@ import { handleProblem, normalizeHandle } from '../src/app/shared/rules';
 import { themeFor } from '../src/app/shared/themes';
 import { Auth } from './auth';
 import type { Config } from './config';
+import { migrate, openDb } from './db';
 import {
   HttpError,
   RateLimiter,
@@ -72,6 +72,8 @@ interface Route {
 export interface App {
   server: http.Server;
   store: Store;
+  /** 'postgres' or 'pglite'. */
+  database: string;
   mailer: Mailer;
   close(): Promise<void>;
 }
@@ -82,18 +84,21 @@ const ID = '([A-Za-z0-9_-]{12})';
 const HANDLE = '([A-Za-z0-9_]{1,40})';
 const MAX_PROCESSING = 3;
 
-export function createApp(
+export async function createApp(
   config: Config,
   options: { now?: () => number; logMail?: boolean } = {},
-): App {
+): Promise<App> {
   const clock = options.now ?? Date.now;
   mkdirSync(config.dataDir, { recursive: true });
-  const store = new Store(path.join(config.dataDir, 'stalk.db'));
+  const db = await openDb(config.databaseUrl, config.dataDir);
+  await migrate(db);
+  const store = new Store(db);
   const mailer = createMailer(config, options.logMail ?? true);
   const auth = new Auth(config, store, mailer);
   const limiter = new RateLimiter();
   const tz = config.timeZone;
-  const allowedOrigin = config.publicUrl ? new URL(config.publicUrl).origin : null;
+  const publicUrl = config.publicUrl ? new URL(config.publicUrl) : null;
+  const allowedOrigin = publicUrl?.origin ?? null;
   let processing = 0;
 
   // Access
@@ -146,21 +151,21 @@ export function createApp(
   }
 
   /** Today's date and theme. The theme is saved the first time a day is seen. */
-  function openToday(now: number): DayInfo {
+  async function openToday(now: number): Promise<DayInfo> {
     const date = dayKey(now, tz);
-    return { date, theme: store.openDay(date, themeFor(date)) };
+    return { date, theme: await store.openDay(date, themeFor(date)) };
   }
 
-  function livePost(id: string, viewerId: number): PostRow {
-    const post = store.post(id, viewerId);
+  async function livePost(id: string, viewerId: number): Promise<PostRow> {
+    const post = await store.post(id, viewerId);
     if (!post || post.status !== 'live') throw new HttpError(404, 'That photo is gone.');
     return post;
   }
 
   // Handlers
 
-  function session(c: Ctx): SessionInfo {
-    const today = openToday(c.now);
+  async function session(c: Ctx): Promise<SessionInfo> {
+    const today = await openToday(c.now);
     return {
       user: c.user ? me(c.user) : null,
       today,
@@ -173,13 +178,13 @@ export function createApp(
     return { ok: true, resendIn: await auth.requestCode(c.body['email'], c.ip, c.now) };
   }
 
-  function verify(c: Ctx) {
-    const { user, token } = auth.verifyCode(c.body['email'], c.body['code'], c.ip, c.now);
+  async function verify(c: Ctx) {
+    const { user, token } = await auth.verifyCode(c.body['email'], c.body['code'], c.ip, c.now);
     c.res.setHeader('Set-Cookie', auth.sessionCookie(token));
     return { user: me(user) };
   }
 
-  function setHandle(c: Ctx) {
+  async function setHandle(c: Ctx) {
     const user = signedIn(c);
     const handle = normalizeHandle(String(c.body['handle'] ?? ''));
     const problem = handleProblem(handle);
@@ -188,53 +193,53 @@ export function createApp(
     if (!limiter.take(`handle:${user.id}`, 3, 86_400_000, c.now)) {
       throw new HttpError(429, 'You changed your name a lot today. Try again tomorrow.');
     }
-    if (!store.setHandle(user.id, handle)) throw new HttpError(409, 'That name is taken.');
-    return { user: me(store.userById(user.id)!) };
+    if (!(await store.setHandle(user.id, handle))) throw new HttpError(409, 'That name is taken.');
+    return { user: me((await store.userById(user.id))!) };
   }
 
-  function signOut(c: Ctx) {
-    auth.signOut(c.req);
+  async function signOut(c: Ctx) {
+    await auth.signOut(c.req);
     c.res.setHeader('Set-Cookie', auth.sessionCookie(null));
     return { ok: true };
   }
 
-  function themes(c: Ctx): ThemeList {
+  async function themes(c: Ctx): Promise<ThemeList> {
     viewer(c);
-    const today = openToday(c.now);
+    const today = await openToday(c.now);
     const upcoming = [1, 2, 3, 4, 5, 6, 7].map((i) => {
       const date = addDays(today.date, i);
       return { date, theme: themeFor(date) };
     });
-    return { today, upcoming, past: store.pastDays(today.date, 120) };
+    return { today, upcoming, past: await store.pastDays(today.date, 120) };
   }
 
-  function board(c: Ctx): Board {
+  async function board(c: Ctx): Promise<Board> {
     viewer(c);
-    const today = openToday(c.now);
+    const today = await openToday(c.now);
     const date = c.params[0] === 'today' ? today.date : c.params[0];
     if (!isDayKey(date) || date > today.date) {
       throw new HttpError(404, "That day hasn't happened yet.");
     }
-    const theme = date === today.date ? today.theme : store.dayTheme(date);
+    const theme = date === today.date ? today.theme : await store.dayTheme(date);
     if (!theme) throw new HttpError(404, 'Nobody posted that day.');
     const uid = c.user?.id ?? -1;
-    const mine = c.user ? store.postFor(c.user.id, date, uid) : undefined;
+    const mine = c.user ? await store.postFor(c.user.id, date, uid) : undefined;
     return {
       day: { date, theme },
       isToday: date === today.date,
-      posts: store.board(date, uid).map((row) => toPost(row, uid)),
+      posts: (await store.board(date, uid)).map((row) => toPost(row, uid)),
       mine: mine ? toMyPost(mine, uid) : null,
     };
   }
 
   async function upload(c: Ctx) {
     const user = member(c);
-    const today = openToday(c.now);
+    const today = await openToday(c.now);
     const claimed = c.req.headers['x-day'];
     if (typeof claimed === 'string' && claimed !== today.date) {
       throw new HttpError(409, 'A new day just started. Check out the new theme first.');
     }
-    if (store.postFor(user.id, today.date)) {
+    if (await store.postFor(user.id, today.date)) {
       throw new HttpError(409, 'You already posted today. New theme at midnight.');
     }
     const type = String(c.req.headers['content-type'] ?? '');
@@ -257,7 +262,7 @@ export function createApp(
       const image = await processImage(body);
       const id = newPostId();
       await saveImage(config.dataDir, id, image);
-      const saved = store.insertPost({
+      const saved = await store.insertPost({
         id,
         userId: user.id,
         day: today.date,
@@ -270,61 +275,61 @@ export function createApp(
         await deleteImage(config.dataDir, id);
         throw new HttpError(409, 'You already posted today. New theme at midnight.');
       }
-      return { post: toMyPost(store.post(id, user.id)!, user.id) };
+      return { post: toMyPost((await store.post(id, user.id))!, user.id) };
     } finally {
       processing--;
     }
   }
 
-  function like(c: Ctx) {
+  async function like(c: Ctx) {
     const user = member(c);
-    const post = livePost(c.params[0], user.id);
+    const post = await livePost(c.params[0], user.id);
     if (post.userId === user.id) throw new HttpError(400, 'You can’t like your own photo.');
     if (!limiter.take(`like:${user.id}`, 600, 3_600_000, c.now)) {
       throw new HttpError(429, 'Slow down a little.');
     }
     const liked = c.body['liked'] !== false;
-    return { likes: store.setLike(post.id, user.id, liked, c.now), liked };
+    return { likes: await store.setLike(post.id, user.id, liked, c.now), liked };
   }
 
-  function report(c: Ctx) {
+  async function report(c: Ctx) {
     const user = member(c);
-    const post = store.post(c.params[0]);
+    const post = await store.post(c.params[0]);
     if (!post || (post.status !== 'live' && post.status !== 'hidden')) {
       throw new HttpError(404, 'That photo is gone.');
     }
     if (post.userId === user.id) throw new HttpError(400, 'That’s yours. You can delete it.');
-    const reports = store.report(post.id, user.id, c.now);
+    const reports = await store.report(post.id, user.id, c.now);
     if (post.status === 'live' && !post.reviewed && reports >= config.reportsToHide) {
-      store.setStatus(post.id, 'hidden');
+      await store.setStatus(post.id, 'hidden');
     }
     return { ok: true };
   }
 
   async function deletePost(c: Ctx) {
     const user = signedIn(c);
-    const post = store.post(c.params[0]);
+    const post = await store.post(c.params[0]);
     if (!post || post.userId !== user.id || (post.status !== 'live' && post.status !== 'hidden')) {
       throw new HttpError(404, 'That photo is gone.');
     }
-    store.setStatus(post.id, 'deleted');
+    await store.setStatus(post.id, 'deleted');
     await deleteImage(config.dataDir, post.id);
     return { ok: true };
   }
 
-  function profile(c: Ctx): Profile {
+  async function profile(c: Ctx): Promise<Profile> {
     viewer(c);
-    const target = store.userByHandle(normalizeHandle(c.params[0]));
+    const target = await store.userByHandle(normalizeHandle(c.params[0]));
     if (!target?.handle || target.banned) {
       throw new HttpError(404, 'Nobody here goes by that name.');
     }
     const uid = c.user?.id ?? -1;
     const isMe = uid === target.id;
-    const posts = store.postsBy(target.id, uid, isMe).map((row) => ({
+    const posts = (await store.postsBy(target.id, uid, isMe)).map((row) => ({
       ...toMyPost(row, uid),
-      theme: store.dayTheme(row.day) ?? themeFor(row.day),
+      theme: row.theme ?? themeFor(row.day),
     }));
-    const history = store.history(target.id);
+    const history = await store.history(target.id);
     // Deleted days still count toward the streak; days a mod took down don't.
     const days = history.filter((h) => h.status !== 'removed').map((h) => h.day);
     // Everyone sees the days with a photo up. Deleted and taken-down days are only for the owner.
@@ -338,7 +343,7 @@ export function createApp(
     return {
       handle: target.handle,
       joinedAt: target.created_at,
-      streak: streakLength(days, openToday(c.now).date),
+      streak: streakLength(days, (await openToday(c.now)).date),
       days: days.length,
       likes: posts.reduce((sum, p) => sum + (p.status === 'live' ? p.likes : 0), 0),
       isMe,
@@ -349,7 +354,7 @@ export function createApp(
 
   async function image(c: Ctx) {
     const [id, kind] = c.params;
-    const post = POST_ID.test(id) ? store.post(id) : undefined;
+    const post = POST_ID.test(id) ? await store.post(id) : undefined;
     const user = c.user;
     const visible =
       post &&
@@ -370,10 +375,10 @@ export function createApp(
     return HANDLED;
   }
 
-  function modQueue(c: Ctx): ModQueue {
+  async function modQueue(c: Ctx): Promise<ModQueue> {
     admin(c);
     return {
-      items: store.modQueue().map((row) => ({
+      items: (await store.modQueue()).map((row) => ({
         post: toMyPost(row, -1),
         theme: row.theme ?? themeFor(row.day),
         email: row.email,
@@ -385,15 +390,15 @@ export function createApp(
 
   async function moderate(c: Ctx) {
     admin(c);
-    const post = store.post(c.params[0]);
+    const post = await store.post(c.params[0]);
     if (!post || (post.status !== 'live' && post.status !== 'hidden')) {
       throw new HttpError(404, 'That photo is gone.');
     }
     const action = c.body['action'];
     if (action === 'keep') {
-      store.setStatus(post.id, 'live', true);
+      await store.setStatus(post.id, 'live', true);
     } else if (action === 'remove') {
-      store.setStatus(post.id, 'removed', true);
+      await store.setStatus(post.id, 'removed', true);
       await deleteImage(config.dataDir, post.id);
     } else {
       throw new HttpError(400, "Action must be 'keep' or 'remove'.");
@@ -403,10 +408,10 @@ export function createApp(
 
   async function ban(c: Ctx) {
     admin(c);
-    const target = store.userByHandle(normalizeHandle(c.params[0]));
+    const target = await store.userByHandle(normalizeHandle(c.params[0]));
     if (!target) throw new HttpError(404, 'Nobody here goes by that name.');
     if (auth.isAdmin(target)) throw new HttpError(400, 'Mods can’t be banned here.');
-    const removed = store.banUser(target.id);
+    const removed = await store.banUser(target.id);
     await Promise.all(removed.map((id) => deleteImage(config.dataDir, id)));
     return { ok: true, removed: removed.length };
   }
@@ -446,10 +451,38 @@ export function createApp(
     }
   }
 
+  /**
+   * Requests through Cloudflare should land on one address: https, without www. Session cookies
+   * only work on the exact address that set them (and are https-only), so http:// or www. would
+   * look like being signed out. Direct requests (health checks, Tailscale) are left alone.
+   */
+  function canonical(req: http.IncomingMessage, url: URL): string | null {
+    if (!publicUrl || publicUrl.protocol !== 'https:' || !config.trustProxy) return null;
+    const visitor = String(req.headers['cf-visitor'] ?? '');
+    const proto =
+      String(req.headers['x-forwarded-proto'] ?? '')
+        .split(',')[0]
+        .trim() ||
+      (/"scheme":"(https?)"/.exec(visitor)?.[1] ?? '');
+    if (!proto) return null;
+    const wrongHost = req.headers.host === `www.${publicUrl.host}`;
+    if (proto === 'https' && !wrongHost) return null;
+    return publicUrl.origin + url.pathname + url.search;
+  }
+
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const method = req.method ?? 'GET';
     try {
+      const target = canonical(req, url);
+      if (target) {
+        // 308 keeps POSTs as POSTs; GETs can use the classic 301.
+        res.writeHead(method === 'GET' || method === 'HEAD' ? 301 : 308, { Location: target });
+        return void res.end();
+      }
+      if (publicUrl?.protocol === 'https:' && config.trustProxy) {
+        res.setHeader('Strict-Transport-Security', 'max-age=15552000');
+      }
       if (!url.pathname.startsWith('/api/')) {
         if (config.staticDir && (method === 'GET' || method === 'HEAD')) {
           return await serveStatic(req, res, config.staticDir, url.pathname);
@@ -481,7 +514,7 @@ export function createApp(
           ctx.body = await readJson(req);
         }
       }
-      ctx.user = auth.userFrom(req, ctx.now);
+      ctx.user = await auth.userFrom(req, res, ctx.now);
       const result = await route.handler(ctx);
       if (result !== HANDLED) sendJson(res, 200, result);
     } catch (error) {
@@ -498,25 +531,26 @@ export function createApp(
     }
   });
 
-  const pruneTimer = setInterval(() => {
+  const prune = () => {
     const now = clock();
-    store.pruneExpired(now);
+    store.pruneExpired(now).catch((error) => console.error('[db] prune failed:', error));
     auth.limiter.prune(now);
     limiter.prune(now, 86_400_000);
-  }, 3_600_000);
+  };
+  const pruneTimer = setInterval(prune, 3_600_000);
   pruneTimer.unref();
-  store.pruneExpired(clock());
+  prune();
 
   return {
     server,
     store,
     mailer,
+    database: db.kind,
     close: () =>
       new Promise<void>((resolve) => {
         clearInterval(pruneTimer);
         server.close(() => {
-          store.close();
-          resolve();
+          db.close().finally(resolve);
         });
         server.closeAllConnections();
       }),

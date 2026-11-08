@@ -68,7 +68,15 @@ export class SignInPage {
   protected async verify(): Promise<void> {
     if (this.code().length !== 6 || this.busy()) return;
     await this.run(async () => {
-      const { user } = await api.verify(this.email().trim(), this.code());
+      await api.verify(this.email().trim(), this.code());
+      // Make sure the browser actually kept the sign-in cookie before moving on. If it didn't
+      // (cookies blocked, or an odd address), say so now instead of failing on the next step.
+      const { user } = await api.session();
+      if (!user) {
+        throw new Error(
+          'Your browser didn’t keep you signed in. Make sure cookies are allowed for this site, then try again.',
+        );
+      }
       this.session.setUser(user);
       if (user.handle) this.notice.show(`Welcome back, ${user.handle}.`);
     });

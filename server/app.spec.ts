@@ -11,6 +11,7 @@ import type { Board, Profile, SessionInfo } from '../src/app/shared/protocol';
 import { themeFor } from '../src/app/shared/themes';
 import { App, createApp } from './app';
 import { loadConfig } from './config';
+import { testDatabaseUrl } from './test-db';
 
 let app: App;
 let base: string;
@@ -23,10 +24,11 @@ beforeAll(async () => {
   dataDir = mkdtempSync(path.join(tmpdir(), 'stalk-test-'));
   const config = loadConfig({
     DATA_DIR: dataDir,
+    DATABASE_URL: await testDatabaseUrl(),
     ADMIN_EMAILS: 'adm0001@rit.edu',
     STATIC_DIR: path.join(dataDir, 'no-site'),
   });
-  app = createApp(config, { now: () => now, logMail: false });
+  app = await createApp(config, { now: () => now, logMail: false });
   await new Promise<void>((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
 });

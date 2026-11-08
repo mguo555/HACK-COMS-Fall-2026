@@ -13,7 +13,8 @@ if (existsSync(envPath)) {
   }
 }
 
-// node:sqlite works fine but still prints an "experimental" warning on Node 22. Hide just that one.
+// node:sqlite (only used by scripts/import-sqlite.ts now) prints an "experimental" warning on
+// Node 22. Hide just that one.
 const emitWarning = process.emitWarning.bind(process);
 process.emitWarning = (warning, ...rest) => {
   if (String(warning).includes('SQLite is an experimental feature')) return;

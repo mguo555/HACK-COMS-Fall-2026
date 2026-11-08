@@ -1,0 +1,9 @@
+# Installed by scripts/deploy.sh, which fills in @DIR@ (the ~/thedailystalk folder).
+[Unit]
+Description=Back up TheDailyStalk's database
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash @DIR@/app/scripts/backup-db.sh @DIR@

@@ -1,0 +1,58 @@
+# The production stack: Postgres, the site, and the Cloudflare Tunnel connector.
+#
+# scripts/deploy.sh unpacks this repo into ~/thedailystalk/app on the server and runs
+#   docker compose -f app/compose.yaml --env-file .env [--profile tunnel] up -d
+# from ~/thedailystalk, so the paths below point one level up, at files that outlive deploys:
+#   ../.env         settings (see .env.example); POSTGRES_PASSWORD is generated on first deploy
+#   ../tunnel.env   TUNNEL_TOKEN for the Cloudflare Tunnel
+#   ../data         uploaded photos
+#   ../postgres     the database files
+name: thedailystalk
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stalk
+      POSTGRES_DB: stalk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in ~/thedailystalk/.env}
+    volumes:
+      - ../postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U stalk -d stalk']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # No ports: only the app can reach the database, over the stack's private network.
+
+  app:
+    build: .
+    image: thedailystalk
+    restart: unless-stopped
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: ../.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      DATA_DIR: /data
+      DATABASE_URL: postgres://stalk:${POSTGRES_PASSWORD}@db:5432/stalk
+    volumes:
+      - ../data:/data
+    # Only this machine can reach the site directly; the public way in is the tunnel.
+    ports:
+      - 127.0.0.1:${STALK_PORT:-5001}:3001
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.10.7
+    profiles: [tunnel]
+    restart: unless-stopped
+    # Host networking, so the route set up in Cloudflare (http://localhost:5001) reaches the app.
+    network_mode: host
+    env_file: ../tunnel.env
+    command: tunnel --no-autoupdate --edge-ip-version 4 run
+    depends_on:
+      - app

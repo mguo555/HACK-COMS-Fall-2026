@@ -40,3 +40,10 @@ form {
     padding: 22px 18px;
   }
 }
+
+.spam {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bloom) 22%, var(--surface));
+  font-size: 15px;
+}

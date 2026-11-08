@@ -1,11 +1,6 @@
-# TheDailyStalk: the built site and the API server in one image.
-#
-#   docker build -t thedailystalk .
-#   docker run -d --init -p 5001:3001 -v ~/thedailystalk/data:/data --env-file .env thedailystalk
-#
-# The database and photos live in /data, so mount a folder there or they vanish with the
-# container. Settings come from the environment (see .env.example). scripts/deploy.sh does all
-# of this on a remote server.
+# TheDailyStalk: the built site and the API server in one image. In production it runs with
+# Postgres via compose.yaml (scripts/deploy.sh). Photos live in /data, so mount a folder there.
+# Settings come from the environment (see .env.example).
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
@@ -21,6 +16,7 @@ RUN npx -y npm@11 ci --omit=dev --no-audit --no-fund && rm -rf /root/.npm
 COPY tsconfig.json ./
 COPY server ./server
 COPY src/app/shared ./src/app/shared
+COPY scripts/import-sqlite.ts ./scripts/
 COPY --from=build /app/dist/daily-stalk/browser ./dist/daily-stalk/browser
 ENV HOST=0.0.0.0 PORT=3001 DATA_DIR=/data
 RUN mkdir -p /data && chown node:node /data
