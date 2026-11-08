@@ -62,6 +62,19 @@ on your Tailscale network.
 Everything lives in `.data/`: the database (`stalk.db`) and the photos (`images/`). Back that
 folder up.
 
+## Deploying to a server with Docker
+
+```bash
+scripts/deploy.sh user@host 5001
+```
+
+This sends the committed code over SSH, builds a Docker image on the server, and runs it with
+`--restart unless-stopped` on the port you give it. On the server everything is in
+`~/thedailystalk`: `data/` holds the database and photos (kept across deploys, back it up) and
+`.env` holds settings like SMTP and `ADMIN_EMAILS`. After editing `.env` there, run
+`sudo docker restart thedailystalk`. Logs, including sign-in codes when SMTP isn't set up:
+`sudo docker logs -f thedailystalk`.
+
 ## How it's built
 
 Angular 21 in the browser, a small Node server with no framework, SQLite for data, and

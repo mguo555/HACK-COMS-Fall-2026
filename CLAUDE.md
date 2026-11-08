@@ -29,14 +29,15 @@ The previous project, "Will AI Beat Us?" (Gemini poker), is archived on branch
 
 ## Commands
 
-| Command               | What it does                                              |
-| --------------------- | --------------------------------------------------------- |
-| `npm run dev`         | API server (3001) + Angular dev server (4200)             |
-| `npm run dev:tailnet` | Same, web server on this machine's Tailscale IP only      |
-| `npm run server`      | API only; also serves `dist/daily-stalk/browser` if built |
-| `npm test`            | Unit + API tests (offline, temp data dir)                 |
-| `npm run typecheck`   | tsc for the app and the server                            |
-| `npm run build`       | Production build                                          |
+| Command                            | What it does                                              |
+| ---------------------------------- | --------------------------------------------------------- |
+| `npm run dev`                      | API server (3001) + Angular dev server (4200)             |
+| `npm run dev:tailnet`              | Same, web server on this machine's Tailscale IP only      |
+| `npm run server`                   | API only; also serves `dist/daily-stalk/browser` if built |
+| `npm test`                         | Unit + API tests (offline, temp data dir)                 |
+| `npm run typecheck`                | tsc for the app and the server                            |
+| `npm run build`                    | Production build                                          |
+| `npm run deploy -- user@host 5001` | Docker deploy over SSH (`scripts/deploy.sh`)              |
 
 Install with npm 11 (`npx npm@11 install`); npm 10 crashes on this lockfile ("edgesOut").
 Without SMTP in `.env`, sign-in codes print to the server console.
@@ -88,10 +89,12 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
 - 2026-11-07: Photo of the day next to the theme, masonry feed with avatars and times, side
   vines, profile calendar (posted/deleted days), Past themes box on the Themes page. Checked in
   headless Chrome against a seeded six-day test server.
+- 2026-11-07: Dockerfile + `scripts/deploy.sh`. Deployed to the homelab (saksham@100.91.45.86,
+  Ubuntu 24.04) on port 5001; data in `~/thedailystalk/data` there. Plain HTTP for now.
 
 ## Ideas / next steps
 
-- Set up SMTP and real hosting; pick admins.
+- Set up SMTP and HTTPS; pick admins.
 - Account deletion (delete all my photos and my email).
 - Client-side downscaling before upload for slow connections; HEIC support on desktop.
 - Maybe notifications or a reminder email when a new theme drops.

@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "server:watch": "tsx watch server/main.ts",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.server.json --noEmit"
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "deploy": "scripts/deploy.sh"
   },
   "private": true,
   "packageManager": "npm@11.19.1",
@@ -26,7 +27,8 @@
     "nodemailer": "^10.4.0",
     "rxjs": "~7.8.0",
     "sharp": "^0.35.5",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@angular/build": "^21.2.29",
@@ -36,7 +38,6 @@
     "@types/nodemailer": "^8.0.2",
     "concurrently": "^9.2.5",
     "prettier": "^3.8.1",
-    "tsx": "^4.23.15",
     "typescript": "~5.9.2",
     "vitest": "^4.1.12"
   }
