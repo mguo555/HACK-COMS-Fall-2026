@@ -78,7 +78,17 @@ for desktop uploads.
 
 ## Front end
 
-Standalone Angular components, signals, no zone.js. The server's JSON is the state; pages load
+Standalone Angular components, signals, no zone.js. A few pieces worth knowing:
+
+- **Feed** (`ui/post-grid`): masonry. Each photo goes into the shortest column, so the first row
+  still reads left to right. Columns: 4 at 1000px and up, 3 at 700px, else 2.
+- **Photo of the day** (`ui/top-photo`): the board page picks the most liked photo from the
+  posts it already has, so it changes live as people like things.
+- **Calendar** (`ui/post-calendar`): month grids from the profile's `calendar` list, newest month
+  first, back to when the account was made (at most 12).
+- **Vines** (`ui/vines`): an SVG pattern tile that repeats down both side margins.
+
+The server's JSON is the state; pages load
 what they need and update locally after actions (likes update instantly and roll back on error).
 Shared styles and color tokens (light and dark) are in `src/styles.css`; each component keeps its
 own CSS under the 4 kB budget.

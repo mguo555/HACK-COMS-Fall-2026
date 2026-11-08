@@ -64,6 +64,14 @@ export interface ProfilePost extends MyPost {
   theme: string;
 }
 
+export interface CalendarDay {
+  day: string;
+  /** posted: the photo is up. deleted and removed (by a mod) are only sent to the owner. */
+  status: 'posted' | 'deleted' | 'removed';
+  /** The photo, for posted days. */
+  id: string | null;
+}
+
 export interface Profile {
   handle: string;
   joinedAt: number;
@@ -72,6 +80,8 @@ export interface Profile {
   likes: number;
   isMe: boolean;
   posts: ProfilePost[];
+  /** One entry per day this person posted, newest first. */
+  calendar: CalendarDay[];
 }
 
 export interface ModItem {

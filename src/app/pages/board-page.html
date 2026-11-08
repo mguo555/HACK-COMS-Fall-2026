@@ -28,37 +28,57 @@
 
   @case ('ready') {
     @if (day(); as day) {
-      <app-theme-tag
-        [date]="day.date"
-        [theme]="day.theme"
-        [isToday]="isToday()"
-        [nextDayAt]="session.nextDayAt()"
-      />
-
-      @if (isToday()) {
-        @if (session.canAct()) {
-          <app-uploader
-            [mine]="mine()"
-            [day]="day.date"
-            (posted)="posted($event)"
-            (openMine)="openMine()"
+      <div class="hero">
+        <div class="lead">
+          <app-theme-tag
+            [date]="day.date"
+            [theme]="day.theme"
+            [isToday]="isToday()"
+            [nextDayAt]="session.nextDayAt()"
           />
-        } @else if (!session.user()) {
-          <p class="cta">
-            <a routerLink="/sign-in">Sign in with your RIT email</a> to post your own.
-          </p>
-        }
-      } @else {
-        <p class="cta">
-          <a routerLink="/">Back to today</a>
-          <span class="dot">·</span>
-          <a routerLink="/themes">Other days</a>
-        </p>
-      }
+
+          @if (isToday()) {
+            @if (session.canAct()) {
+              <app-uploader
+                [mine]="mine()"
+                [day]="day.date"
+                (posted)="posted($event)"
+                (openMine)="openMine()"
+              />
+            } @else if (!session.user()) {
+              <p class="cta">
+                <a routerLink="/sign-in">Sign in with your RIT email</a> to post your own.
+              </p>
+            }
+          } @else {
+            <p class="cta">
+              <a routerLink="/">Back to today</a>
+              <span class="dot">·</span>
+              <a routerLink="/themes">Other days</a>
+            </p>
+          }
+        </div>
+
+        <app-top-photo
+          class="pod"
+          [post]="topPost()"
+          [isToday]="isToday()"
+          [canLike]="session.canAct()"
+          (open)="openPost(topPost()!)"
+          (like)="like($event)"
+        />
+      </div>
 
       <section aria-label="Photos">
         <div class="head">
-          <h2>{{ posts().length }} {{ posts().length === 1 ? 'photo' : 'photos' }}</h2>
+          <h2>
+            @if (isToday()) {
+              Today’s board
+            } @else {
+              That day’s board
+            }
+            <span class="count">{{ posts().length }}</span>
+          </h2>
           @if (posts().length > 1) {
             <div class="sort" role="group" aria-label="Sort photos">
               <button
@@ -84,6 +104,7 @@
         @if (posts().length) {
           <app-post-grid
             [posts]="sorted()"
+            [topId]="topPost()?.id ?? null"
             [canLike]="session.canAct()"
             (open)="openIndex.set($event)"
             (like)="like($event)"

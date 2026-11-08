@@ -1,149 +1,102 @@
-import { Component, input, output } from '@angular/core';
+import { Component, DestroyRef, computed, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { imageUrl } from '../api';
 import { formatDay } from '../shared/days';
 import type { Post, PostStatus } from '../shared/protocol';
+import { Flower } from './flower';
+import { handleColor, timeAgo } from './format';
 import { LikeButton } from './like-button';
 
 export type GridPost = Post & { theme?: string; status?: PostStatus };
 
+interface Placed {
+  post: GridPost;
+  /** Position in `posts`, which is what `open` reports. */
+  index: number;
+}
+
+// Photos keep their shape, within limits, so a panorama or a tall shot doesn't take over.
+const WIDEST = 4 / 3;
+const TALLEST = 3 / 4;
+
+/**
+ * Masonry columns. Photos go one at a time into the shortest column, so the first row still
+ * reads left to right in the list's order.
+ */
 @Component({
   selector: 'app-post-grid',
-  imports: [RouterLink, LikeButton],
-  template: `
-    <ul class="grid">
-      @for (post of posts(); track post.id; let i = $index) {
-        <li class="card">
-          <button type="button" class="photo" (click)="open.emit(i)">
-            <img
-              [src]="thumb(post.id)"
-              [alt]="'Photo by ' + post.handle"
-              loading="lazy"
-              decoding="async"
-            />
-            @if (post.status === 'hidden') {
-              <span class="badge">Under review</span>
-            }
-          </button>
-          <div class="meta">
-            @if (showDay()) {
-              <span class="day">
-                <b>{{ shortDay(post.day) }}</b>
-                <span>{{ post.theme }}</span>
-              </span>
-            } @else {
-              <a class="who" [routerLink]="['/u', post.handle]">{{ post.handle }}</a>
-            }
-            <app-like-button
-              [count]="post.likes"
-              [liked]="post.liked"
-              [disabled]="!canLike() || post.mine"
-              (toggle)="like.emit(post)"
-            />
-          </div>
-        </li>
-      }
-    </ul>
-  `,
-  styles: `
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 18px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-    .card {
-      min-width: 0;
-    }
-    .photo {
-      position: relative;
-      display: block;
-      width: 100%;
-      padding: 0;
-      border: 0;
-      border-radius: 12px;
-      overflow: hidden;
-      background: var(--surface-2);
-      aspect-ratio: 4 / 5;
-      cursor: zoom-in;
-    }
-    .photo img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.3s ease;
-    }
-    .photo:hover img {
-      transform: scale(1.03);
-    }
-    .badge {
-      position: absolute;
-      left: 8px;
-      top: 8px;
-      padding: 2px 10px;
-      border-radius: 999px;
-      background: var(--ink);
-      color: var(--bg);
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .meta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 4px 0 0 2px;
-    }
-    .who {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--ink);
-      font-weight: 600;
-      font-size: 15px;
-      text-decoration: none;
-    }
-    .who:hover {
-      color: var(--leaf);
-    }
-    .day {
-      display: grid;
-      min-width: 0;
-      font-size: 13px;
-      line-height: 1.3;
-      color: var(--muted);
-    }
-    .day b {
-      color: var(--ink);
-    }
-    .day span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    @media (max-width: 560px) {
-      .grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-      }
-    }
-  `,
+  imports: [RouterLink, LikeButton, Flower],
+  templateUrl: './post-grid.html',
+  styleUrl: './post-grid.css',
 })
 export class PostGrid {
   readonly posts = input.required<GridPost[]>();
   /** Label each photo with its day and theme instead of who posted it (profile pages). */
   readonly showDay = input(false);
   readonly canLike = input(false);
+  /** The photo of the day, which gets a badge. */
+  readonly topId = input<string | null>(null);
   readonly open = output<number>();
   readonly like = output<GridPost>();
+
+  private readonly width = signal(window.innerWidth);
+  private readonly now = signal(Date.now());
+
+  protected readonly columns = computed(() => {
+    const w = this.width();
+    return w >= 1000 ? 4 : w >= 700 ? 3 : 2;
+  });
+
+  protected readonly stacks = computed(() => {
+    const n = this.columns();
+    const stacks: Placed[][] = Array.from({ length: n }, () => []);
+    const heights: number[] = new Array(n).fill(0);
+    this.posts().forEach((post, index) => {
+      let shortest = 0;
+      for (let i = 1; i < n; i++) if (heights[i] < heights[shortest] - 0.01) shortest = i;
+      stacks[shortest].push({ post, index });
+      // Height in column widths: the photo plus roughly the name row under it.
+      heights[shortest] += 1 / this.ratio(post) + 0.25;
+    });
+    return stacks;
+  });
+
+  constructor() {
+    const resize = () => this.width.set(window.innerWidth);
+    window.addEventListener('resize', resize, { passive: true });
+    const timer = setInterval(() => this.now.set(Date.now()), 60_000);
+    inject(DestroyRef).onDestroy(() => {
+      window.removeEventListener('resize', resize);
+      clearInterval(timer);
+    });
+  }
+
+  protected ratio(post: Post): number {
+    return Math.min(WIDEST, Math.max(TALLEST, post.width / post.height));
+  }
 
   protected thumb(id: string): string {
     return imageUrl(id, 'thumb');
   }
 
+  protected color(handle: string): string {
+    return handleColor(handle);
+  }
+
+  protected when(ms: number): string {
+    return timeAgo(ms, this.now());
+  }
+
   protected shortDay(day: string): string {
     return formatDay(day, 'short');
+  }
+
+  /** Cards sprout in one after another, but don't make anyone wait long. */
+  protected delay(index: number): number {
+    return Math.min(index, 12) * 45;
+  }
+
+  protected loaded(event: Event): void {
+    (event.target as HTMLElement).classList.add('loaded');
   }
 }

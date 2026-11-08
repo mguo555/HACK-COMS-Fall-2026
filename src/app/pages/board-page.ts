@@ -8,6 +8,7 @@ import type { DayInfo, MyPost, Post } from '../shared/protocol';
 import { Lightbox } from '../ui/lightbox';
 import { PostGrid } from '../ui/post-grid';
 import { ThemeTag } from '../ui/theme-tag';
+import { TopPhoto } from '../ui/top-photo';
 import { Uploader } from '../ui/uploader';
 
 type Sort = 'new' | 'top';
@@ -15,7 +16,7 @@ type Sort = 'new' | 'top';
 /** Today's board (route '') or a past day's (route 'day/:date'). */
 @Component({
   selector: 'app-board-page',
-  imports: [RouterLink, ThemeTag, Uploader, PostGrid, Lightbox],
+  imports: [RouterLink, ThemeTag, Uploader, PostGrid, Lightbox, TopPhoto],
   templateUrl: './board-page.html',
   styleUrl: './board-page.css',
 })
@@ -47,6 +48,22 @@ export class BoardPage {
     const order = this.topOrder();
     const rank = (p: Post) => order.get(p.id) ?? -1;
     return [...posts].sort((a, b) => rank(a) - rank(b));
+  });
+
+  /** The most liked photo (earliest wins a tie). None until something gets a like. */
+  protected readonly topPost = computed(() => {
+    let best: Post | null = null;
+    for (const p of this.posts()) {
+      if (!p.likes) continue;
+      if (
+        !best ||
+        p.likes > best.likes ||
+        (p.likes === best.likes && p.createdAt < best.createdAt)
+      ) {
+        best = p;
+      }
+    }
+    return best;
   });
 
   private loadCount = 0;
@@ -125,6 +142,11 @@ export class BoardPage {
 
   protected openMine(): void {
     const index = this.sorted().findIndex((p) => p.mine);
+    if (index >= 0) this.openIndex.set(index);
+  }
+
+  protected openPost(post: Post): void {
+    const index = this.sorted().findIndex((p) => p.id === post.id);
     if (index >= 0) this.openIndex.set(index);
   }
 

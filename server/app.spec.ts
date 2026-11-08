@@ -344,5 +344,16 @@ describe('days', () => {
     expect((await upload(fern, await photo().jpeg().toBuffer())).status).toBe(409);
     const after = await call<Board>('GET', '/api/days/today', { cookie: fern });
     expect(after.body.mine?.status).toBe('deleted');
+
+    const own = await call<Profile>('GET', '/api/users/fern', { cookie: fern });
+    expect(own.body.calendar).toEqual([
+      { day: today(), status: 'deleted', id: null },
+      { day: addDays(today(), -1), status: 'posted', id: fernPost },
+    ]);
+    const viewer = await signIn('vwr0001@rit.edu', 'viewer');
+    const theirs = await call<Profile>('GET', '/api/users/fern', { cookie: viewer });
+    expect(theirs.body.calendar).toEqual([
+      { day: addDays(today(), -1), status: 'posted', id: fernPost },
+    ]);
   });
 });

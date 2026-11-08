@@ -52,7 +52,8 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
 - `src/app/shared/`: `protocol.ts` (API types), `days.ts`, `themes.ts` (the theme list),
   `rules.ts` (email + handle rules).
 - `src/app/pages/`: board (today and past days), sign-in, themes, profile, mod, not-found.
-- `src/app/ui/`: post grid, lightbox, uploader, theme tag, like button, plant, countdown, logo.
+- `src/app/ui/`: post grid (masonry), photo of the day, calendar, lightbox, uploader, theme tag,
+  like button, plant, vines, flower, countdown, logo, `format.ts` (avatar colors, "3h ago").
 
 ## Conventions
 
@@ -71,6 +72,12 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
 - Can't like your own photo. 3 reports hide a photo until a mod decides; "keep" marks it reviewed.
 - Uploads re-encoded to WebP (2048px + 720px thumb), EXIF stripped, animated images refused.
 - Handles: 3 to 20 of `a-z0-9_`, changeable up to 3 times a day.
+- Photo of the day = the day's most liked photo (needs at least 1 like; earliest wins a tie).
+  Worked out in the browser from the board, so it updates as people like.
+- Profile calendar: posted days show that day's photo. Deleted and mod-removed days are only
+  sent to the owner (`calendar` in the profile response).
+- Feed is masonry: photos keep their shape, clamped between 3:4 and 4:3. Vines fill the side
+  margins only on screens wider than 1220px.
 
 ## Progress log
 
@@ -78,6 +85,9 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   posts, likes, reports, mods, themes), the Angular site (board, sign-in, themes, profiles with
   the streak plant, mod queue, lightbox), docs. 28 tests pass; a headless Chrome walkthrough
   (desktop light + phone dark, 8 accounts) passed every check.
+- 2026-11-07: Photo of the day next to the theme, masonry feed with avatars and times, side
+  vines, profile calendar (posted/deleted days), Past themes box on the Themes page. Checked in
+  headless Chrome against a seeded six-day test server.
 
 ## Ideas / next steps
 

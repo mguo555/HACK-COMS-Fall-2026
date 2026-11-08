@@ -24,6 +24,7 @@ import path from 'node:path';
 import { addDays, dayKey, isDayKey, startOfDay, streakLength } from '../src/app/shared/days';
 import type {
   Board,
+  CalendarDay,
   DayInfo,
   Me,
   ModQueue,
@@ -323,7 +324,17 @@ export function createApp(
       ...toMyPost(row, uid),
       theme: store.dayTheme(row.day) ?? themeFor(row.day),
     }));
-    const days = store.postedDays(target.id);
+    const history = store.history(target.id);
+    // Deleted days still count toward the streak; days a mod took down don't.
+    const days = history.filter((h) => h.status !== 'removed').map((h) => h.day);
+    // Everyone sees the days with a photo up. Deleted and taken-down days are only for the owner.
+    const calendar = history.flatMap((h): CalendarDay[] => {
+      if (h.status === 'live' || (isMe && h.status === 'hidden')) {
+        return [{ day: h.day, status: 'posted', id: h.id }];
+      }
+      if (isMe && h.status !== 'hidden') return [{ day: h.day, status: h.status, id: null }];
+      return [];
+    });
     return {
       handle: target.handle,
       joinedAt: target.created_at,
@@ -332,6 +343,7 @@ export function createApp(
       likes: posts.reduce((sum, p) => sum + (p.status === 'live' ? p.likes : 0), 0),
       isMe,
       posts,
+      calendar,
     };
   }
 

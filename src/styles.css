@@ -18,6 +18,11 @@
   --pot-dark: #9c4f2d;
   --danger: #a83a26;
   --on-leaf: #fffdf6;
+  --bloom: #f4c95d;
+  --petal: #f2b8c6;
+  --vine: #86a866;
+  --vine-leaf: #9cc77c;
+  --vine-leaf-2: #79ad5c;
   --radius: 14px;
   --shadow: 0 1px 2px rgb(45 55 30 / 8%), 0 8px 24px rgb(45 55 30 / 8%);
   --font: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -44,6 +49,9 @@
     --pot-dark: #a85d38;
     --danger: #ef8a73;
     --on-leaf: #102010;
+    --vine: #3e5c35;
+    --vine-leaf: #4c7740;
+    --vine-leaf-2: #3d6534;
     --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 25%);
     color-scheme: dark;
   }
@@ -139,6 +147,20 @@ img {
   color: var(--muted);
   border: 1.5px dashed var(--line);
   border-radius: var(--radius);
+}
+
+/* A round initial for a handle; the color comes from handleColor() in ui/format.ts. */
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .sr-only {

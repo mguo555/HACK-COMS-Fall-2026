@@ -9,26 +9,51 @@
 } @else if (error(); as message) {
   <div class="empty gap">{{ message }}</div>
 } @else if (list(); as list) {
-  <section>
-    <h2>Today</h2>
-    <a class="today" routerLink="/">
-      <span class="date">{{ day(list.today.date, 'long') }}</span>
-      <span class="theme">{{ list.today.theme }}</span>
-    </a>
-  </section>
+  <div class="top">
+    <div>
+      <section>
+        <h2>Today</h2>
+        <a class="today" routerLink="/">
+          <span class="date">{{ day(list.today.date, 'long') }}</span>
+          <span class="theme">{{ list.today.theme }}</span>
+        </a>
+      </section>
 
-  <section>
-    <h2>Coming up</h2>
-    <ol class="upcoming">
-      @for (item of list.upcoming; track item.date) {
-        <li>
-          <span class="date">{{ day(item.date) }}</span>
-          <span class="theme">{{ item.theme }}</span>
-        </li>
+      <section>
+        <h2>Coming up</h2>
+        <ol class="upcoming">
+          @for (item of list.upcoming; track item.date) {
+            <li>
+              <span class="date">{{ day(item.date) }}</span>
+              <span class="theme">{{ item.theme }}</span>
+            </li>
+          }
+        </ol>
+        <p class="note">Themes further out can still change.</p>
+      </section>
+    </div>
+
+    <aside class="box" aria-labelledby="past-themes">
+      <h2 id="past-themes">Past themes</h2>
+      @if (list.past.length) {
+        <ol class="history">
+          @for (item of list.past; track item.date) {
+            <li>
+              <a [routerLink]="['/day', item.date]">
+                <span class="date">{{ day(item.date) }}</span>
+                <span class="theme">{{ item.theme }}</span>
+                <span class="count"
+                  >{{ item.posts }} {{ item.posts === 1 ? 'photo' : 'photos' }}</span
+                >
+              </a>
+            </li>
+          }
+        </ol>
+      } @else {
+        <p class="none">No past themes yet. Today is the first one, so check back tomorrow.</p>
       }
-    </ol>
-    <p class="note">Themes further out can still change.</p>
-  </section>
+    </aside>
+  </div>
 
   <section>
     <h2>Past days</h2>

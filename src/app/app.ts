@@ -2,10 +2,11 @@ import { Component, DestroyRef, effect, inject, untracked } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Notice, Session } from './session';
 import { Logo } from './ui/logo';
+import { Vines } from './ui/vines';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Logo],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Logo, Vines],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

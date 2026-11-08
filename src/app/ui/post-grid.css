@@ -1,0 +1,165 @@
+.masonry {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.stack {
+  display: grid;
+  flex: 1 1 0;
+  gap: 18px;
+  min-width: 0;
+}
+
+.card {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(45 55 30 / 6%);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  animation: sprout 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
+
+.card.top {
+  border-color: var(--bloom);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bloom) 35%, transparent);
+}
+
+.photo {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--leaf-soft);
+  cursor: zoom-in;
+}
+
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+}
+
+.photo img.loaded {
+  opacity: 1;
+}
+
+.card:hover .photo img {
+  transform: scale(1.03);
+}
+
+.badge {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge.bloom {
+  background: var(--bloom);
+  color: #3b2a05;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 0 4px;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.text b,
+.text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text b {
+  font-size: 15px;
+}
+
+.who:hover b {
+  color: var(--leaf);
+}
+
+.text small {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+@keyframes sprout {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .photo img {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .masonry,
+  .stack {
+    gap: 10px;
+  }
+
+  .card {
+    padding: 5px;
+    border-radius: 14px;
+  }
+
+  .meta {
+    padding-left: 2px;
+  }
+
+  .avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+}

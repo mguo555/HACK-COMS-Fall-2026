@@ -342,12 +342,12 @@ export class Store {
     );
   }
 
-  /** Every day the user posted (deleted posts count, mod-removed ones don't), newest first. */
-  postedDays(userId: number): string[] {
-    return this.all<{ day: string }>(
-      "SELECT day FROM posts WHERE user_id = ? AND status != 'removed' ORDER BY day DESC",
+  /** Every post the user ever made (one per day), newest first, whatever its status. */
+  history(userId: number): { id: string; day: string; status: PostStatus }[] {
+    return this.all(
+      'SELECT id, day, status FROM posts WHERE user_id = ? ORDER BY day DESC',
       userId,
-    ).map((r) => r.day);
+    );
   }
 
   setStatus(id: string, status: PostStatus, reviewed?: boolean): void {

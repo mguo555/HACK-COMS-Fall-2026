@@ -1,0 +1,60 @@
+<div class="masonry" role="list">
+  @for (stack of stacks(); track $index) {
+    <div class="stack">
+      @for (item of stack; track item.post.id) {
+        @let post = item.post;
+        <article
+          class="card"
+          role="listitem"
+          [class.top]="post.id === topId()"
+          [style.animation-delay.ms]="delay(item.index)"
+        >
+          <button
+            type="button"
+            class="photo"
+            [style.aspect-ratio]="ratio(post)"
+            (click)="open.emit(item.index)"
+          >
+            <img
+              [src]="thumb(post.id)"
+              [alt]="'Photo by ' + post.handle"
+              loading="lazy"
+              decoding="async"
+              (load)="loaded($event)"
+            />
+            @if (post.id === topId()) {
+              <span class="badge bloom"><app-flower /> Photo of the day</span>
+            } @else if (post.status === 'hidden') {
+              <span class="badge">Under review</span>
+            }
+          </button>
+
+          <div class="meta">
+            @if (showDay()) {
+              <span class="text">
+                <b>{{ shortDay(post.day) }}</b>
+                <small>{{ post.theme }}</small>
+              </span>
+            } @else {
+              <a class="who" [routerLink]="['/u', post.handle]">
+                <span class="avatar" [style.background]="color(post.handle)">{{
+                  post.handle[0]
+                }}</span>
+                <span class="text">
+                  <b>{{ post.handle }}</b>
+                  <small>{{ when(post.createdAt) }}</small>
+                </span>
+              </a>
+            }
+            <app-like-button
+              [count]="post.likes"
+              [liked]="post.liked"
+              [disabled]="!canLike() || post.mine"
+              (toggle)="like.emit(post)"
+            />
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>

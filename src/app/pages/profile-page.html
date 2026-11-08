@@ -61,6 +61,19 @@
   } @else {
     <div class="empty">{{ p.isMe ? 'Your photos will show up here.' : 'No photos yet.' }}</div>
   }
+
+  @if (session.today(); as today) {
+    <section class="calendar">
+      <h2>Calendar</h2>
+      <app-post-calendar
+        [days]="p.calendar"
+        [today]="today.date"
+        [since]="joinedDay()"
+        [showPrivate]="p.isMe"
+        (open)="openById($event)"
+      />
+    </section>
+  }
 }
 
 @if (openIndex() !== null) {

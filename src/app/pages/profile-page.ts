@@ -3,15 +3,17 @@ import { Title } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
 import { ApiError, api, errorMessage } from '../api';
 import { Likes, Notice, Session } from '../session';
+import { DEFAULT_TIME_ZONE, dayKey } from '../shared/days';
 import type { Post, Profile, ProfilePost } from '../shared/protocol';
 import { Lightbox } from '../ui/lightbox';
 import { Plant } from '../ui/plant';
+import { PostCalendar } from '../ui/post-calendar';
 import { PostGrid } from '../ui/post-grid';
 
 /** Someone's garden: their streak plant, stats, and every photo they've posted. */
 @Component({
   selector: 'app-profile-page',
-  imports: [RouterLink, Plant, PostGrid, Lightbox],
+  imports: [RouterLink, Plant, PostGrid, Lightbox, PostCalendar],
   templateUrl: './profile-page.html',
   styleUrl: './profile-page.css',
 })
@@ -35,6 +37,11 @@ export class ProfilePage {
     const p = this.profile();
     if (!p) return '';
     return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(p.joinedAt);
+  });
+
+  protected readonly joinedDay = computed(() => {
+    const p = this.profile();
+    return p ? dayKey(p.joinedAt, DEFAULT_TIME_ZONE) : '';
   });
 
   protected readonly streakNote = computed(() => {
@@ -78,6 +85,21 @@ export class ProfilePage {
   protected removed(post: Post): void {
     this.openIndex.set(null);
     this.posts.update((posts) => posts.filter((p) => p.id !== post.id));
+    // Only you can delete from your own profile, so the day turns into a "deleted" day.
+    this.profile.update(
+      (p) =>
+        p && {
+          ...p,
+          calendar: p.calendar.map((d) =>
+            d.id === post.id ? { ...d, status: 'deleted' as const, id: null } : d,
+          ),
+        },
+    );
+  }
+
+  protected openById(id: string): void {
+    const index = this.posts().findIndex((p) => p.id === id);
+    if (index >= 0) this.openIndex.set(index);
   }
 
   protected async signOut(): Promise<void> {
