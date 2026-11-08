@@ -62,7 +62,7 @@ if [ -f data/stalk.db ]; then
   compose up -d --wait db
   compose run --rm --no-deps -T app node_modules/.bin/tsx scripts/import-sqlite.ts /data/stalk.db
   for f in data/stalk.db data/stalk.db-wal data/stalk.db-shm; do
-    [ -f "$f" ] && mv "$f" "$f.migrated-$(date +%F)"
+    if [ -f "$f" ]; then mv "$f" "$f.migrated-$(date +%F)"; fi
   done
 fi
 
