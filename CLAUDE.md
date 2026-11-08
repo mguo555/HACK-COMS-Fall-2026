@@ -115,6 +115,11 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   Deploy hiccups: a `[ -f ] && mv` loop under `set -e` and a Docker Hub timeout took the site
   down for a few minutes; deploy.sh now retries builds and fails before touching the stack.
 
+- 2026-11-07: Admin: sg7695@rit.edu (`ADMIN_EMAILS` in the server's `.env`; change it, then
+  `up -d --no-deps app`, since `restart` keeps old env). Info button (ⓘ) in the header opens
+  "How it works" (`ui/how-it-works.ts`); it also opens once after someone picks their name.
+  Header shows only the sprout under 420px so the menu fits.
+
 ## Ideas / next steps
 
 - Pick admins. Ask the emailer's owner to require a key (`EMAILER_KEY`).

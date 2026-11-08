@@ -1,18 +1,20 @@
 import { Component, DestroyRef, effect, inject, untracked } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Notice, Session } from './session';
+import { Guide, HowItWorks } from './ui/how-it-works';
 import { Logo } from './ui/logo';
 import { Vines } from './ui/vines';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Logo, Vines],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Logo, Vines, HowItWorks],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App {
   protected readonly session = inject(Session);
   protected readonly notice = inject(Notice);
+  protected readonly guide = inject(Guide);
   private readonly router = inject(Router);
 
   constructor() {

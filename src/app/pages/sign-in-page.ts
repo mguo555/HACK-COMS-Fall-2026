@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { api, errorMessage } from '../api';
 import { Notice, Session } from '../session';
 import { HANDLE_MAX, handleProblem, normalizeHandle } from '../shared/rules';
+import { Guide } from '../ui/how-it-works';
 
 type Step = 'email' | 'code' | 'handle';
 
@@ -16,6 +17,7 @@ export class SignInPage {
   private readonly session = inject(Session);
   private readonly notice = inject(Notice);
   private readonly router = inject(Router);
+  private readonly guide = inject(Guide);
 
   protected readonly step = signal<Step>('email');
   protected readonly email = signal('');
@@ -90,9 +92,11 @@ export class SignInPage {
       return;
     }
     await this.run(async () => {
+      const firstTime = !this.session.user()?.handle;
       const { user } = await api.setHandle(handle);
       this.session.setUser(user);
       this.notice.show(`You're in, ${user.handle}.`);
+      if (firstTime) this.guide.show();
     });
   }
 

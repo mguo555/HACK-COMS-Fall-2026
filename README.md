@@ -84,7 +84,7 @@ Handy commands on the server, from `~/thedailystalk`:
 alias stalk='sudo docker compose -f app/compose.yaml --env-file .env --profile tunnel'
 stalk ps                      # what's running
 stalk logs -f app             # the site's log
-stalk restart app             # after editing .env
+stalk up -d --no-deps app     # after editing .env (restart alone keeps the old settings)
 stalk exec db psql -U stalk   # a database shell
 sudo systemctl start stalk-backup.service   # back up right now
 ```
