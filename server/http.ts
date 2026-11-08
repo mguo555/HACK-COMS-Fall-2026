@@ -66,9 +66,17 @@ export function getCookie(req: http.IncomingMessage, name: string): string | und
   return undefined;
 }
 
+/**
+ * Who's asking, for rate limits. Behind Cloudflare (or its tunnel) every request arrives from the
+ * same local address, so with TRUST_PROXY on we read the visitor's address from the headers.
+ */
 export function clientIp(req: http.IncomingMessage, behindProxy: boolean): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (behindProxy && typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+  if (behindProxy) {
+    const cloudflare = req.headers['cf-connecting-ip'];
+    if (typeof cloudflare === 'string' && cloudflare.trim()) return cloudflare.trim();
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
+  }
   return req.socket.remoteAddress ?? 'unknown';
 }
 

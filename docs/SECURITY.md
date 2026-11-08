@@ -12,6 +12,13 @@
 - Rate limits: one code per address per minute, 6 per hour; 20 code emails and 60 code checks
   per IP per hour; 300 POSTs per IP per minute; 600 likes per person per hour.
 
+## Behind Cloudflare
+
+- The public site runs through a Cloudflare Tunnel, so the homelab has no open ports and its IP
+  never appears in DNS. Visitors get HTTPS from Cloudflare.
+- With `TRUST_PROXY=true`, rate limits key on Cloudflare's `CF-Connecting-IP` header. Don't turn
+  that on for a server people can reach directly, or they could fake the header.
+
 ## Sessions
 
 - A random 32-byte token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` when `PUBLIC_URL` is

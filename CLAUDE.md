@@ -79,6 +79,9 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   sent to the owner (`calendar` in the profile response).
 - Feed is masonry: photos keep their shape, clamped between 3:4 and 4:3. Vines fill the side
   margins only on screens wider than 1220px.
+- Public at https://stalk.photo through a Cloudflare Tunnel (container `stalk-tunnel` on the
+  homelab, token in `~/thedailystalk/tunnel.env`), not DDNS: the home IP changes daily and the
+  tunnel needs no open ports. Server `.env` has `PUBLIC_URL=https://stalk.photo`, `TRUST_PROXY=true`.
 
 ## Progress log
 
@@ -90,11 +93,12 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   vines, profile calendar (posted/deleted days), Past themes box on the Themes page. Checked in
   headless Chrome against a seeded six-day test server.
 - 2026-11-07: Dockerfile + `scripts/deploy.sh`. Deployed to the homelab (saksham@100.91.45.86,
-  Ubuntu 24.04) on port 5001; data in `~/thedailystalk/data` there. Plain HTTP for now.
+  Ubuntu 24.04) on port 5001; data in `~/thedailystalk/data` there. Then a Cloudflare Tunnel
+  for stalk.photo; rate limits read `CF-Connecting-IP`.
 
 ## Ideas / next steps
 
-- Set up SMTP and HTTPS; pick admins.
+- Set up SMTP; pick admins.
 - Account deletion (delete all my photos and my email).
 - Client-side downscaling before upload for slow connections; HEIC support on desktop.
 - Maybe notifications or a reminder email when a new theme drops.

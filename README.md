@@ -75,6 +75,26 @@ This sends the committed code over SSH, builds a Docker image on the server, and
 `sudo docker restart thedailystalk`. Logs, including sign-in codes when SMTP isn't set up:
 `sudo docker logs -f thedailystalk`.
 
+### Putting it on a domain with Cloudflare Tunnel
+
+The homelab's IP changes often, so instead of DNS records pointing at it, a Cloudflare Tunnel
+connector runs next to the site and connects out to Cloudflare. Nothing needs to be forwarded on
+the router.
+
+1. Cloudflare dashboard: Zero Trust, Networks, Tunnels, create a Cloudflared tunnel and copy
+   the token from the install command (don't run the command).
+2. Save it on the server as `~/thedailystalk/tunnel.env` containing `TUNNEL_TOKEN=...`
+   (`chmod 600`), then start the connector:
+   ```bash
+   sudo docker run -d --name stalk-tunnel --restart unless-stopped --network host \
+     --env-file ~/thedailystalk/tunnel.env cloudflare/cloudflared:2026.10.7 \
+     tunnel --no-autoupdate --edge-ip-version 4 run
+   ```
+3. In the tunnel's routes (public hostnames), send `stalk.photo` to HTTP `localhost:5001`.
+   Delete any old DNS records for that name first.
+4. In `~/thedailystalk/.env` set `PUBLIC_URL=https://stalk.photo` and `TRUST_PROXY=true`, then
+   redeploy or restart.
+
 ## How it's built
 
 Angular 21 in the browser, a small Node server with no framework, SQLite for data, and
