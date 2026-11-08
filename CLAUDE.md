@@ -23,7 +23,8 @@ The previous project, "Will AI Beat Us?" (Gemini poker), is archived on branch
 ## Stack
 
 - **Frontend:** Angular 21 (standalone, signals, zoneless), plain `fetch` (`src/app/api.ts`).
-- **Backend:** Node 22 + `tsx`, no framework (`server/`). SQLite via built-in `node:sqlite`.
+- **Backend:** Node 22 + `tsx`, no framework (`server/`). Postgres via `pg` in production;
+  PGlite (in-process Postgres) in dev and tests when `DATABASE_URL` is unset (`server/db.ts`).
   `sharp` re-encodes photos; `nodemailer` sends codes.
 - **Tests:** Vitest (`npm test`): shared code plus end-to-end API tests on a real server.
 
@@ -41,6 +42,7 @@ The previous project, "Will AI Beat Us?" (Gemini poker), is archived on branch
 
 Install with npm 11 (`npx npm@11 install`); npm 10 crashes on this lockfile ("edgesOut").
 Without `EMAILER_URL` or SMTP in `.env`, sign-in codes print to the server console.
+On the server: `cd ~/thedailystalk && sudo docker compose -f app/compose.yaml --env-file .env --profile tunnel logs -f app`.
 Gotcha: kill servers by port, `kill $(lsof -t -i:3001 -sTCP:LISTEN)`; `pkill -f` matches its own
 shell. Run `node_modules/.bin/tsx` directly for background servers.
 
@@ -48,7 +50,8 @@ shell. Run `node_modules/.bin/tsx` directly for background servers.
 
 See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
 
-- `server/`: `main.ts`, `app.ts` (all routes), `store.ts` (schema + queries), `auth.ts`,
+- `server/`: `main.ts`, `app.ts` (all routes), `db.ts` (connection + migrations), `store.ts`
+  (queries), `auth.ts`,
   `images.ts`, `mail.ts`, `http.ts`, `config.ts`, `app.spec.ts`.
 - `src/app/shared/`: `protocol.ts` (API types), `days.ts`, `themes.ts` (the theme list),
   `rules.ts` (email + handle rules).
@@ -81,9 +84,15 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   margins only on screens wider than 1220px.
 - Sign-in emails go through the team's emailer (`EMAILER_URL=https://emailer.aceiq.ca/send-email`,
   `server/mail.ts`). It writes each extra JSON field as a "name: value" line under "Refer Page:".
-- Public at https://stalk.photo through a Cloudflare Tunnel (container `stalk-tunnel` on the
-  homelab, token in `~/thedailystalk/tunnel.env`), not DDNS: the home IP changes daily and the
+- Public at https://stalk.photo through a Cloudflare Tunnel (`tunnel` service in compose.yaml,
+  token in `~/thedailystalk/tunnel.env`), not DDNS: the home IP changes daily and the
   tunnel needs no open ports. Server `.env` has `PUBLIC_URL=https://stalk.photo`, `TRUST_PROXY=true`.
+
+- Production = `compose.yaml` on the homelab: Postgres 17 (`db`), `app` on 127.0.0.1:5001 only,
+  `tunnel`. Schema changes go in `MIGRATIONS` in `server/db.ts` (append, never edit).
+  Nightly `pg_dump` at 4:30 (`stalk-backup.timer`, 14 days in `~/thedailystalk/backups`).
+- Through Cloudflare, `http://` and `www.` redirect to `https://stalk.photo` (cookies are
+  per-host and https-only). Sessions roll (30 days from last use).
 
 ## Progress log
 
@@ -99,6 +108,12 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
   for stalk.photo; rate limits read `CF-Connecting-IP`. Codes now emailed via emailer.aceiq.ca.
   stalk.photo and www.stalk.photo live through the tunnel (DNS: proxied CNAMEs to
   `8a6e85eb-d7a2-4d29-b834-84370e98a5fe.cfargotunnel.com`).
+
+- 2026-11-07: Moved to Postgres (Compose stack on the homelab) with the SQLite data imported;
+  PGlite for dev/tests (40 tests pass on both). Fixed sign-ins not sticking on http/www
+  (redirects + HSTS), rolling sessions, session check after the code step, spam note.
+  Deploy hiccups: a `[ -f ] && mv` loop under `set -e` and a Docker Hub timeout took the site
+  down for a few minutes; deploy.sh now retries builds and fails before touching the stack.
 
 ## Ideas / next steps
 

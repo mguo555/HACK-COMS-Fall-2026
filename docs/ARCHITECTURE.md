@@ -1,12 +1,14 @@
 # Architecture
 
 ```
-browser (Angular 21)  ──fetch──▶  Node server (server/)  ──▶  SQLite (.data/stalk.db)
-                                                          └─▶  photos (.data/images/*.webp)
+visitor ──https──▶ Cloudflare ──tunnel──▶ cloudflared ──▶ Node server (server/) ──▶ Postgres
+                                                                               └──▶ photos (/data/images)
 ```
 
 In development, `ng serve` (4200) serves the app and forwards `/api` to the Node server (3001)
-through `proxy.conf.json`. In production the Node server serves both the built app and the API.
+through `proxy.conf.json`, and the database is PGlite in `.data/pglite`. In production the Node
+server serves both the built app and the API, Postgres runs next to it, and Cloudflare Tunnel
+brings visitors in (see `compose.yaml` and the README's Production section).
 
 ## Folders
 
@@ -14,7 +16,8 @@ through `proxy.conf.json`. In production the Node server serves both the built a
 | -------------------- | ----------------------------------------------------------------------- |
 | `server/main.ts`     | Entry point: loads `.env`, builds the app, listens                      |
 | `server/app.ts`      | Every API route, access rules and response shapes                       |
-| `server/store.ts`    | SQLite schema and every query                                           |
+| `server/db.ts`       | Postgres or PGlite connection, the schema and its migrations            |
+| `server/store.ts`    | Every query                                                             |
 | `server/auth.ts`     | Sign-in codes, sessions, the session cookie                             |
 | `server/images.ts`   | Checks and re-encodes uploads with sharp                                |
 | `server/mail.ts`     | Sends codes over SMTP, or prints them when SMTP isn't set up            |
@@ -28,6 +31,12 @@ through `proxy.conf.json`. In production the Node server serves both the built a
 | `src/app/api.ts`     | `fetch` wrappers for every route                                        |
 
 ## Data
+
+Postgres. `server/db.ts` holds the schema as a list of migrations that run on start (tracked in
+`schema_migrations`); add a new one rather than editing an old one. Without `DATABASE_URL` the
+server uses PGlite, the same Postgres compiled to run inside Node, so development and tests
+need nothing installed and run the same SQL as production. Timestamps are milliseconds in
+`BIGINT` columns; dates are `YYYY-MM-DD` text in the site's time zone.
 
 ```
 users        id, email (account form, see below), handle, created_at, banned

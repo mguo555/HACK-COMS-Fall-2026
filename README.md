@@ -18,7 +18,8 @@ photo for it. No videos, no captions, no text posts. Just the photo, and likes.
 
 ## Quick start
 
-Needs Node 22.13 or newer (it uses Node's built-in SQLite) and npm 11.
+Needs Node 22.13 or newer and npm 11. Nothing else: in development the database is PGlite (real
+Postgres compiled to run inside Node), stored in `.data/pglite`.
 
 ```bash
 npx npm@11 install
@@ -29,7 +30,7 @@ Open http://localhost:4200. Sign in with any RIT-style email like `abc1234@rit.e
 email set up, the code shows up in the terminal running the server:
 
 ```
-[mail] no SMTP set up. Sign-in code for abc1234@rit.edu: 482913
+[mail] no email set up. Sign-in code for abc1234@rit.edu: 482913
 ```
 
 To try it on your phone, run `npm run dev:tailnet` and open the printed address on any device
@@ -37,66 +38,77 @@ on your Tailscale network.
 
 ## Commands
 
-| Command               | What it does                                                 |
-| --------------------- | ------------------------------------------------------------ |
-| `npm run dev`         | API server (3001) and Angular dev server (4200)              |
-| `npm run dev:tailnet` | Same, reachable from your other Tailscale devices            |
-| `npm run server`      | API server only. Also serves the built site, if there is one |
-| `npm test`            | Unit tests and end-to-end API tests                          |
-| `npm run typecheck`   | Type-check the app and the server                            |
-| `npm run build`       | Production build into `dist/daily-stalk/browser`             |
+| Command                            | What it does                                                 |
+| ---------------------------------- | ------------------------------------------------------------ |
+| `npm run dev`                      | API server (3001) and Angular dev server (4200)              |
+| `npm run dev:tailnet`              | Same, reachable from your other Tailscale devices            |
+| `npm run server`                   | API server only. Also serves the built site, if there is one |
+| `npm test`                         | Unit tests and end-to-end API tests (on PGlite)              |
+| `npm run typecheck`                | Type-check the app and the server                            |
+| `npm run build`                    | Production build into `dist/daily-stalk/browser`             |
+| `npm run deploy -- user@host 5001` | Deploy to a server (see below)                               |
 
-## Running it for real
+To run the tests on a real Postgres server instead of PGlite, set
+`TEST_DATABASE_URL=postgres://user:pass@host:5432/db`. Each test file makes its own database.
 
-1. Copy `.env.example` to `.env` (`chmod 600 .env`) and set up email so codes get sent. Either
-   point `EMAILER_URL` at the team's emailer service (`https://emailer.aceiq.ca/send-email`) or
-   fill in an SMTP account. RIT's Outlook may put the first few emails in junk.
-2. Set `ADMIN_EMAILS` to the RIT emails of whoever moderates, and `PUBLIC_URL` to the site's
-   address.
-3. `npm run build`, then `npm run server`. The server serves the site and the API on one port
-   (3001 by default).
-4. Put it behind a reverse proxy with HTTPS (Caddy is the least work), set `HOST=0.0.0.0` only
-   if the proxy is on another machine, and `TRUST_PROXY=true` so rate limits see real IPs.
+## Production
 
-Everything lives in `.data/`: the database (`stalk.db`) and the photos (`images/`). Back that
-folder up.
+stalk.photo runs on a homelab server as a Docker Compose stack (`compose.yaml`):
 
-## Deploying to a server with Docker
+- **db**: Postgres 17. Only the app can reach it.
+- **app**: the site and API, on port 5001, reachable only from the server itself.
+- **tunnel**: the Cloudflare Tunnel connector. Cloudflare sends stalk.photo traffic down the
+  tunnel to the app, so the home IP can change and no router ports are open.
+
+Deploy the committed code with:
 
 ```bash
-scripts/deploy.sh user@host 5001
+npm run deploy -- saksham@100.91.45.86 5001
 ```
 
-This sends the committed code over SSH, builds a Docker image on the server, and runs it with
-`--restart unless-stopped` on the port you give it. On the server everything is in
-`~/thedailystalk`: `data/` holds the database and photos (kept across deploys, back it up) and
-`.env` holds settings like SMTP and `ADMIN_EMAILS`. After editing `.env` there, run
-`sudo docker restart thedailystalk`. Logs, including sign-in codes when SMTP isn't set up:
-`sudo docker logs -f thedailystalk`.
+It builds on the server and restarts what changed. On the server, everything is in
+`~/thedailystalk`:
 
-### Putting it on a domain with Cloudflare Tunnel
+| Path          | What's there                                                                                                         |
+| ------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `app/`        | The code, replaced on every deploy                                                                                   |
+| `.env`        | Settings: `PUBLIC_URL`, `TRUST_PROXY`, `EMAILER_URL`, `ADMIN_EMAILS`, and `POSTGRES_PASSWORD` (made on first deploy) |
+| `tunnel.env`  | `TUNNEL_TOKEN` for the Cloudflare Tunnel                                                                             |
+| `postgres/`   | The database files                                                                                                   |
+| `data/images` | Uploaded photos                                                                                                      |
+| `backups/`    | Nightly database dumps at 4:30 AM, 14 days kept                                                                      |
 
-The homelab's IP changes often, so instead of DNS records pointing at it, a Cloudflare Tunnel
-connector runs next to the site and connects out to Cloudflare. Nothing needs to be forwarded on
-the router.
+Handy commands on the server, from `~/thedailystalk`:
+
+```bash
+alias stalk='sudo docker compose -f app/compose.yaml --env-file .env --profile tunnel'
+stalk ps                      # what's running
+stalk logs -f app             # the site's log
+stalk restart app             # after editing .env
+stalk exec db psql -U stalk   # a database shell
+sudo systemctl start stalk-backup.service   # back up right now
+```
+
+Restore a backup with
+`stalk exec -T db pg_restore -U stalk -d stalk --clean --if-exists < backups/stalk-YYYY-MM-DD.dump`.
+The dumps don't include photos; copy `data/images` somewhere else too.
+
+### Setting up the domain from scratch
 
 1. Cloudflare dashboard: Zero Trust, Networks, Tunnels, create a Cloudflared tunnel and copy
-   the token from the install command (don't run the command).
-2. Save it on the server as `~/thedailystalk/tunnel.env` containing `TUNNEL_TOKEN=...`
-   (`chmod 600`), then start the connector:
-   ```bash
-   sudo docker run -d --name stalk-tunnel --restart unless-stopped --network host \
-     --env-file ~/thedailystalk/tunnel.env cloudflare/cloudflared:2026.10.7 \
-     tunnel --no-autoupdate --edge-ip-version 4 run
-   ```
-3. In the tunnel's routes (public hostnames), send `stalk.photo` to HTTP `localhost:5001`.
-   Delete any old DNS records for that name first.
-4. In `~/thedailystalk/.env` set `PUBLIC_URL=https://stalk.photo` and `TRUST_PROXY=true`, then
-   redeploy or restart.
+   the token from its install command (don't run the command). Save it on the server as
+   `~/thedailystalk/tunnel.env` containing `TUNNEL_TOKEN=...` (`chmod 600`).
+2. In the tunnel's routes, send `stalk.photo` to HTTP `localhost:5001`. Delete any old DNS
+   records for that name first, or Cloudflare can't add the tunnel's.
+3. In `~/thedailystalk/.env` set `PUBLIC_URL=https://stalk.photo`, `TRUST_PROXY=true` and
+   `EMAILER_URL=https://emailer.aceiq.ca/send-email`, then deploy.
+
+With `PUBLIC_URL` on https, the server sends `http://` and `www.` visitors to
+`https://stalk.photo` itself, so sign-in cookies always land on the same address.
 
 ## How it's built
 
-Angular 21 in the browser, a small Node server with no framework, SQLite for data, and
+Angular 21 in the browser, a small Node server with no framework, Postgres for data, and
 [sharp](https://sharp.pixelplumbing.com/) to process photos. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SECURITY.md](docs/SECURITY.md).
 

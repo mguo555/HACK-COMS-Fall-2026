@@ -19,11 +19,22 @@
 - With `TRUST_PROXY=true`, rate limits key on Cloudflare's `CF-Connecting-IP` header. Don't turn
   that on for a server people can reach directly, or they could fake the header.
 
+## The server
+
+- Only the Cloudflare Tunnel connector talks to the outside, and it connects outward. No ports
+  are open on the router; the site listens on the server's loopback only (127.0.0.1:5001), and
+  Postgres isn't published at all, only the app container can reach it.
+- With `PUBLIC_URL` on https, requests that come through Cloudflare over `http://` or to `www.`
+  are redirected to `https://stalk.photo`, and responses carry HSTS (180 days).
+- The database password is random, made on first deploy, and kept in `~/thedailystalk/.env`
+  (mode 600). Nightly dumps go to `~/thedailystalk/backups`.
+
 ## Sessions
 
 - A random 32-byte token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` when `PUBLIC_URL` is
   https). The database stores only its SHA-256, so a leaked database doesn't leak sessions.
-- Sessions last 30 days. Signing out deletes the session; a ban deletes all of them.
+- Sessions last 30 days from last use: using the site more than a day after the last refresh
+  pushes the expiry out again. Signing out deletes the session; a ban deletes all of them.
 
 ## Requests from other sites (CSRF)
 
