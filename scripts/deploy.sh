@@ -57,7 +57,7 @@ done
 
 # Containers from before the move to Compose (plain `docker run`) give way to the stack.
 for old in thedailystalk stalk-tunnel; do
-  if $SUDO docker inspect "$old" >/dev/null 2>&1; then
+  if $SUDO docker container inspect "$old" >/dev/null 2>&1; then
     echo "Replacing the old $old container..."
     $SUDO docker rm -f "$old" >/dev/null
   fi
