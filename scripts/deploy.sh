@@ -46,7 +46,14 @@ PROFILES=()
 compose() { $SUDO docker compose -f app/compose.yaml --env-file .env "${PROFILES[@]}" "$@"; }
 
 echo "Building..."
-compose build --quiet
+# Docker Hub sometimes times out; try a few times before giving up. A failed build leaves the
+# running site alone.
+for attempt in 1 2 3; do
+  if compose build --quiet; then break; fi
+  if [ "$attempt" = 3 ]; then echo "Build failed 3 times. The running site wasn't touched."; exit 1; fi
+  echo "Build failed (attempt $attempt). Trying again in 15 seconds..."
+  sleep 15
+done
 
 # Containers from before the move to Compose (plain `docker run`) give way to the stack.
 for old in thedailystalk stalk-tunnel; do
