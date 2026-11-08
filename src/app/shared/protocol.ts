@@ -1,184 +1,96 @@
-/**
- * What the server and the browser send each other. The server runs every table; each browser
- * gets its own view (its own cards only) over Server-Sent Events and sends actions with POST.
- */
-import type { LegalActions, PlayerAction, Street, TableState } from '../poker/engine';
-import type { PublicPersona } from './personas';
+// JSON shapes shared by the server (server/) and the browser.
 
-export type AiStyle = 'characters' | 'gemini';
-export type Leaning = 'fold' | 'call' | 'raise' | 'unchanged';
-/** How a bot feels right now, from its recent wins and losses. */
-export type MoodLabel = 'steady' | 'tilted' | 'shaken' | 'on a heater';
-/** How a bot feels about one human, from how they've treated it. */
-export type FeelingLabel = 'adores' | 'likes' | 'neutral' | 'wary' | 'grudge';
+/** live: on the board. hidden: reported, waiting for a mod. deleted: by its owner. removed: by a mod. */
+export type PostStatus = 'live' | 'hidden' | 'deleted' | 'removed';
 
-export interface RoomSettings {
-  /** Characters with personalities, or plain Gemini players. */
-  aiStyle: AiStyle;
-  /** AI seats at the table (total seats are capped at 6). */
-  aiSeats: number;
-  /** AIs the humans must knock out to win. */
-  knockoutGoal: number;
+export interface Me {
+  handle: string | null;
+  email: string;
+  isAdmin: boolean;
 }
 
-export interface RoomPlayer {
+export interface DayInfo {
+  /** YYYY-MM-DD in the site's time zone (America/New_York by default). */
+  date: string;
+  theme: string;
+}
+
+export interface SessionInfo {
+  user: Me | null;
+  today: DayInfo;
+  /** When the next day and theme start, in ms since the epoch. */
+  nextDayAt: number;
+  /** When true, only signed-in students can see photos. */
+  membersOnly: boolean;
+}
+
+export interface Post {
   id: string;
-  name: string;
-  connected: boolean;
-  isHost: boolean;
-  /** Optional, shown next to the name and used by the AIs. */
-  pronouns: string;
-  /** Language code the AIs use with this player (see languages.ts). */
-  language: string;
-}
-
-/** How a player wants to be addressed. Sent when creating or joining a table. */
-export interface PlayerProfile {
-  pronouns?: string;
-  language?: string;
-}
-
-/** A private message in your thread with one other player (an AI or another human). */
-export interface ChatMessage {
-  id: number;
-  /** The other player in this thread. */
-  withId: string;
-  /** You sent it (false: they sent it to you). */
+  day: string;
+  handle: string;
+  width: number;
+  height: number;
+  likes: number;
+  liked: boolean;
   mine: boolean;
-  text: string;
-  round: number;
-  street: Street;
-  pending?: boolean;
-  /** Canned reply (Gemini not used). */
-  offline?: boolean;
-  /** How much the message shifted the bot, 0 to 100 (bot replies only). */
-  sway?: number | null;
-  leaning?: Leaning | null;
+  createdAt: number;
 }
 
-/** An AI player's out-loud reaction to a table announcement. */
-export interface Reaction {
-  botId: string;
-  say: string;
-  sway: number | null;
-  leaning: Leaning | null;
+export interface MyPost extends Post {
+  status: PostStatus;
 }
 
-/** Something a human said to the whole table. */
-export interface Announcement {
-  id: number;
-  round: number;
-  street: Street;
-  fromId: string;
-  fromName: string;
-  text: string;
-  pending: boolean;
-  reactions: Reaction[];
-  offline: boolean;
+export interface Board {
+  day: DayInfo;
+  isToday: boolean;
+  posts: Post[];
+  /** Your own post for this day, whatever its status. Null if you didn't post or aren't signed in. */
+  mine: MyPost | null;
 }
 
-/** A bot's private reasoning for one decision, revealed after the round. */
-export interface BotThought {
-  id: number;
-  botId: string;
-  round: number;
-  street: Street;
-  action: string;
-  thought: string;
-  offline: boolean;
-  /** Whether a human had messaged this bot, or announced to the table, before it decided. */
-  heardMessage: boolean;
-  /** How much messages changed this decision, 0 to 100 (Gemini decisions only). */
-  influence: number | null;
+export interface DaySummary extends DayInfo {
+  posts: number;
+  /** The most liked photo of the day, used as a cover. */
+  cover: string | null;
 }
 
-export interface Scoreboard {
-  knockouts: number;
-  goal: number;
-  humansLeft: number;
-  humansTotal: number;
-  blindLevel: number;
-  roundsToBlindsUp: number;
+export interface ThemeList {
+  today: DayInfo;
+  upcoming: DayInfo[];
+  past: DaySummary[];
 }
 
-export interface ClientState {
-  code: string;
-  phase: 'lobby' | 'playing' | 'over';
-  settings: RoomSettings;
-  you: { id: string; name: string; isHost: boolean };
-  players: RoomPlayer[];
-  /** Every AI player that has sat at this table, by player id. */
-  personas: Partial<Record<string, PublicPersona>>;
-  /** Other players' hole cards are hidden (rank 0) unless shown at showdown. */
-  table: TableState | null;
-  /** Set when it's your turn. */
-  legal: LegalActions | null;
-  /** When your turn times out (epoch ms), if it's your turn. */
-  turnDeadline: number | null;
-  thinkingBotId: string | null;
-  bubbles: Partial<Record<string, string>>;
-  /** Each AI player's current mood (only when not steady). */
-  moods: Partial<Record<string, MoodLabel>>;
-  /** How each AI player feels about you. */
-  feelings: Partial<Record<string, FeelingLabel>>;
-  /** Your private threads only: with each AI, and with each other human. */
-  chat: ChatMessage[];
-  /** Recent table announcements (public). */
-  announcements: Announcement[];
-  /** Bots' thoughts for the round just finished. */
-  thoughts: BotThought[];
-  /** Why you can't message each other player right now (null = you can). */
-  chatBlockers: Partial<Record<string, string | null>>;
-  messagesLeft: Partial<Record<string, number>>;
-  announceLeft: number;
-  announceBlocker: string | null;
-  ai: { enabled: boolean; model: string; reason: string | null; usedToday: number; perDay: number };
-  notice: string | null;
-  scoreboard: Scoreboard;
-  /** Set when the game is over. */
-  result: { winner: 'humans' | 'ais'; summary: string; stats: PlayerSummary[] } | null;
-  /** Players ready for the next round, and when it starts anyway. */
-  ready: string[];
-  nextRoundAt: number | null;
+export interface ProfilePost extends MyPost {
+  theme: string;
 }
 
-export interface PlayerSummary {
-  id: string;
-  name: string;
-  isHuman: boolean;
-  chips: number;
-  roundsPlayed: number;
-  /** Times a bot reported your message swayed it at least 50%. */
-  persuasions: number;
+export interface Profile {
+  handle: string;
+  joinedAt: number;
+  streak: number;
+  days: number;
+  likes: number;
+  isMe: boolean;
+  posts: ProfilePost[];
 }
 
-// --- Requests ---------------------------------------------------------------------------------
-
-export interface CreateRoomRequest {
-  name: string;
-  settings: Partial<RoomSettings>;
-  profile?: PlayerProfile;
+export interface ModItem {
+  post: MyPost;
+  theme: string;
+  email: string;
+  reports: number;
+  banned: boolean;
 }
 
-export interface JoinRoomRequest {
-  name: string;
-  profile?: PlayerProfile;
+export interface ModQueue {
+  items: ModItem[];
 }
 
-export interface JoinRoomResponse {
-  code: string;
-  token: string;
+export interface LikeResult {
+  likes: number;
+  liked: boolean;
 }
 
-export interface ActRequest {
-  action: PlayerAction;
-}
-
-export interface MessageRequest {
-  botId: string;
-  text: string;
-}
-
-export interface AnnounceRequest {
-  text: string;
+export interface ApiErrorBody {
+  error: string;
 }

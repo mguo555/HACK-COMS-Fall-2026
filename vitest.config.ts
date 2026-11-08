@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
-// Unit tests for the framework-free poker engine (src/app/poker).
+// Unit tests for shared code (src/app/shared) and the API server (server/).
 export default defineConfig({
   test: {
-    include: ['src/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'server/**/*.spec.ts'],
     environment: 'node',
   },
 });
