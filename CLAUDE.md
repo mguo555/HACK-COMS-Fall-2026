@@ -97,6 +97,8 @@ See `docs/ARCHITECTURE.md` (and `docs/SECURITY.md`). Quick map:
 - 2026-11-07: Dockerfile + `scripts/deploy.sh`. Deployed to the homelab (saksham@100.91.45.86,
   Ubuntu 24.04) on port 5001; data in `~/thedailystalk/data` there. Then a Cloudflare Tunnel
   for stalk.photo; rate limits read `CF-Connecting-IP`. Codes now emailed via emailer.aceiq.ca.
+  stalk.photo and www.stalk.photo live through the tunnel (DNS: proxied CNAMEs to
+  `8a6e85eb-d7a2-4d29-b834-84370e98a5fe.cfargotunnel.com`).
 
 ## Ideas / next steps
 
