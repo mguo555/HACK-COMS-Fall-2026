@@ -1,0 +1,62 @@
+.gap {
+  margin-top: 32px;
+}
+
+.top {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  padding: 32px 0 20px;
+}
+
+.who {
+  flex: 1;
+  min-width: 0;
+}
+
+h1 {
+  font-size: clamp(30px, 6vw, 40px);
+  overflow-wrap: anywhere;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.stats b {
+  color: var(--ink);
+}
+
+.side {
+  display: flex;
+  gap: 8px;
+  align-self: flex-start;
+  margin-top: 8px;
+}
+
+.note {
+  margin: -4px 0 24px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--leaf-soft);
+  font-size: 15px;
+}
+
+@media (max-width: 560px) {
+  .top {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .side {
+    width: 100%;
+    margin-top: 0;
+  }
+}

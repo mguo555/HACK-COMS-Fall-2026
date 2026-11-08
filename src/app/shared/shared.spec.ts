@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, dayKey, daysBetween, formatDay, isDayKey, startOfDay, streakLength } from './days';
-import { DEFAULT_EMAIL_RULES, accountEmail, emailProblem, handleProblem, normalizeHandle } from './rules';
+import {
+  addDays,
+  dayKey,
+  daysBetween,
+  formatDay,
+  isDayKey,
+  startOfDay,
+  streakLength,
+} from './days';
+import {
+  DEFAULT_EMAIL_RULES,
+  accountEmail,
+  emailProblem,
+  handleProblem,
+  normalizeHandle,
+} from './rules';
 import { PINNED, THEMES, THEME_START, themeFor } from './themes';
 
 const NY = 'America/New_York';

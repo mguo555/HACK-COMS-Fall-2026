@@ -1,0 +1,75 @@
+@if (signedOut()) {
+  <div class="empty gap">
+    <p>Sign in with your RIT email to see profiles.</p>
+    <p><a routerLink="/sign-in">Sign in</a></p>
+  </div>
+} @else if (error(); as message) {
+  <div class="empty gap">
+    <p>{{ message }}</p>
+    <p><a routerLink="/">Back to today</a></p>
+  </div>
+} @else if (profile(); as p) {
+  <header class="top">
+    <app-plant [streak]="p.streak" />
+    <div class="who">
+      <h1>{{ p.handle }}</h1>
+      <p class="muted">Joined {{ joined() }}</p>
+      <ul class="stats">
+        <li>
+          <b>{{ p.streak }}</b> day streak
+        </li>
+        <li>
+          <b>{{ p.days }}</b> {{ p.days === 1 ? 'day' : 'days' }} posted
+        </li>
+        <li>
+          <b>{{ p.likes }}</b> {{ p.likes === 1 ? 'like' : 'likes' }}
+        </li>
+      </ul>
+    </div>
+    <div class="side">
+      @if (p.isMe) {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="signOut()">Sign out</button>
+      } @else if (session.user()?.isAdmin) {
+        @if (confirmBan()) {
+          <button type="button" class="btn btn-danger btn-sm" (click)="ban(p.handle)">
+            Ban for real
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="confirmBan.set(false)">
+            Cancel
+          </button>
+        } @else {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="confirmBan.set(true)">
+            Ban
+          </button>
+        }
+      }
+    </div>
+  </header>
+
+  @if (streakNote()) {
+    <p class="note">{{ streakNote() }}</p>
+  }
+
+  @if (posts().length) {
+    <app-post-grid
+      [posts]="posts()"
+      [showDay]="true"
+      [canLike]="session.canAct()"
+      (open)="openIndex.set($event)"
+      (like)="like($event)"
+    />
+  } @else {
+    <div class="empty">{{ p.isMe ? 'Your photos will show up here.' : 'No photos yet.' }}</div>
+  }
+}
+
+@if (openIndex() !== null) {
+  <app-lightbox
+    [posts]="posts()"
+    [index]="openIndex()!"
+    (go)="openIndex.set($event)"
+    (closed)="openIndex.set(null)"
+    (like)="like($event)"
+    (removed)="removed($event)"
+  />
+}

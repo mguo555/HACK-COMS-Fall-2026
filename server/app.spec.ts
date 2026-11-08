@@ -131,16 +131,25 @@ describe('signing in', () => {
   });
 
   it('checks names', async () => {
-    expect((await call('POST', '/api/auth/handle', { cookie: fern, json: { handle: 'admin' } })).status).toBe(400);
-    expect((await call('POST', '/api/auth/handle', { cookie: fern, json: { handle: 'a b' } })).status).toBe(400);
-    expect((await call('POST', '/api/auth/handle', { cookie: fern, json: { handle: '@Fern' } })).status).toBe(200);
+    expect(
+      (await call('POST', '/api/auth/handle', { cookie: fern, json: { handle: 'admin' } })).status,
+    ).toBe(400);
+    expect(
+      (await call('POST', '/api/auth/handle', { cookie: fern, json: { handle: 'a b' } })).status,
+    ).toBe(400);
+    expect(
+      (await call('POST', '/api/auth/handle', { cookie: fern, json: { handle: '@Fern' } })).status,
+    ).toBe(200);
   });
 
   it('treats g.rit.edu and +tags as the same account', async () => {
     moss = await signIn('xyz9876+test@g.rit.edu', 'moss');
     const session = await call<SessionInfo>('GET', '/api/session', { cookie: moss });
     expect(session.body.user?.email).toBe('xyz9876@rit.edu');
-    const taken = await call('POST', '/api/auth/handle', { cookie: moss, json: { handle: 'fern' } });
+    const taken = await call('POST', '/api/auth/handle', {
+      cookie: moss,
+      json: { handle: 'fern' },
+    });
     expect(taken.status).toBe(409);
   });
 });
@@ -150,8 +159,13 @@ describe('posting', () => {
     expect((await upload(fern, Buffer.from('hello'), 'text/plain')).status).toBe(415);
     expect((await upload(fern, Buffer.from('fake'), 'video/mp4')).status).toBe(415);
     expect((await upload(fern, Buffer.from('not really a png'), 'image/png')).status).toBe(415);
-    const frames = await Promise.all([photo(80, 80).png().toBuffer(), photo(80, 80, '#fff').png().toBuffer()]);
-    const gif = await sharp(frames, { join: { animated: true } }).gif().toBuffer();
+    const frames = await Promise.all([
+      photo(80, 80).png().toBuffer(),
+      photo(80, 80, '#fff').png().toBuffer(),
+    ]);
+    const gif = await sharp(frames, { join: { animated: true } })
+      .gif()
+      .toBuffer();
     expect((await sharp(gif).metadata()).pages).toBe(2);
     const res = await upload(fern, gif, 'image/gif');
     expect(res.status).toBe(415);
@@ -176,7 +190,12 @@ describe('posting', () => {
     fernPost = res.body.post.id;
 
     const board = await call<Board>('GET', '/api/days/today', { cookie: fern });
-    expect(board.body.mine).toMatchObject({ id: fernPost, status: 'live', width: 200, height: 400 });
+    expect(board.body.mine).toMatchObject({
+      id: fernPost,
+      status: 'live',
+      width: 200,
+      height: 400,
+    });
 
     const img = await call('GET', `/api/img/${fernPost}/full`, { cookie: moss });
     expect(img.status).toBe(200);
@@ -200,12 +219,22 @@ describe('likes, reports and mods', () => {
   let mossPost: string;
 
   it('likes other photos but not your own', async () => {
-    mossPost = (await upload(moss, await photo(300, 300).png().toBuffer(), 'image/png')).body.post.id;
-    const liked = await call('POST', `/api/posts/${fernPost}/like`, { cookie: moss, json: { liked: true } });
+    mossPost = (await upload(moss, await photo(300, 300).png().toBuffer(), 'image/png')).body.post
+      .id;
+    const liked = await call('POST', `/api/posts/${fernPost}/like`, {
+      cookie: moss,
+      json: { liked: true },
+    });
     expect(liked.body).toEqual({ likes: 1, liked: true });
-    const twice = await call('POST', `/api/posts/${fernPost}/like`, { cookie: moss, json: { liked: true } });
+    const twice = await call('POST', `/api/posts/${fernPost}/like`, {
+      cookie: moss,
+      json: { liked: true },
+    });
     expect(twice.body).toEqual({ likes: 1, liked: true });
-    const own = await call('POST', `/api/posts/${mossPost}/like`, { cookie: moss, json: { liked: true } });
+    const own = await call('POST', `/api/posts/${mossPost}/like`, {
+      cookie: moss,
+      json: { liked: true },
+    });
     expect(own.status).toBe(400);
 
     const board = await call<Board>('GET', '/api/days/today', { cookie: moss });
@@ -225,9 +254,15 @@ describe('likes, reports and mods', () => {
   });
 
   it('hides a photo after three reports until a mod looks', async () => {
-    const reporters = [moss, await signIn('rpt0001@rit.edu', 'reporter_one'), await signIn('rpt0002@rit.edu', 'reporter_two')];
+    const reporters = [
+      moss,
+      await signIn('rpt0001@rit.edu', 'reporter_one'),
+      await signIn('rpt0002@rit.edu', 'reporter_two'),
+    ];
     for (const cookie of reporters) {
-      expect((await call('POST', `/api/posts/${fernPost}/report`, { cookie, json: {} })).status).toBe(200);
+      expect(
+        (await call('POST', `/api/posts/${fernPost}/report`, { cookie, json: {} })).status,
+      ).toBe(200);
     }
     const board = await call<Board>('GET', '/api/days/today', { cookie: moss });
     expect(board.body.posts.map((p) => p.id)).toEqual([mossPost]);
@@ -243,7 +278,9 @@ describe('likes, reports and mods', () => {
       '/api/mod/queue',
       { cookie: mod },
     );
-    expect(queue.body.items).toMatchObject([{ post: { id: fernPost }, reports: 3, email: 'abc1234@rit.edu' }]);
+    expect(queue.body.items).toMatchObject([
+      { post: { id: fernPost }, reports: 3, email: 'abc1234@rit.edu' },
+    ]);
     await call('POST', `/api/mod/posts/${fernPost}`, { cookie: mod, json: { action: 'keep' } });
     const after = await call<Board>('GET', '/api/days/today', { cookie: moss });
     expect(after.body.posts).toHaveLength(2);
@@ -255,7 +292,9 @@ describe('likes, reports and mods', () => {
     expect(res.body).toEqual({ ok: true, removed: 1 });
     const session = await call<SessionInfo>('GET', '/api/session', { cookie: moss });
     expect(session.body.user).toBeNull();
-    expect((await call('POST', '/api/auth/code', { json: { email: 'xyz9876@rit.edu' } })).status).toBe(403);
+    expect(
+      (await call('POST', '/api/auth/code', { json: { email: 'xyz9876@rit.edu' } })).status,
+    ).toBe(403);
     expect((await call('GET', `/api/img/${mossPost}/full`, { cookie: fern })).status).toBe(404);
   });
 });
@@ -270,12 +309,20 @@ describe('days', () => {
     expect((await upload(fern, await photo().jpeg().toBuffer())).status).toBe(200);
 
     const profile = await call<Profile>('GET', '/api/users/fern', { cookie: fern });
-    expect(profile.body).toMatchObject({ handle: 'fern', streak: 2, days: 2, likes: 1, isMe: true });
+    expect(profile.body).toMatchObject({
+      handle: 'fern',
+      streak: 2,
+      days: 2,
+      likes: 1,
+      isMe: true,
+    });
     expect(profile.body.posts.map((p) => p.theme)).toEqual([themeFor(today()), themeFor(before)]);
 
     const past = await call<Board>('GET', `/api/days/${before}`, { cookie: fern });
     expect(past.body).toMatchObject({ isToday: false, day: { date: before } });
-    expect((await call('GET', `/api/days/${addDays(today(), 1)}`, { cookie: fern })).status).toBe(404);
+    expect((await call('GET', `/api/days/${addDays(today(), 1)}`, { cookie: fern })).status).toBe(
+      404,
+    );
   });
 
   it('lists upcoming and past themes', async () => {
@@ -291,7 +338,9 @@ describe('days', () => {
   it('keeps the day used after you delete your photo', async () => {
     const board = await call<Board>('GET', '/api/days/today', { cookie: fern });
     const id = board.body.mine!.id;
-    expect((await call('POST', `/api/posts/${id}/delete`, { cookie: fern, json: {} })).status).toBe(200);
+    expect((await call('POST', `/api/posts/${id}/delete`, { cookie: fern, json: {} })).status).toBe(
+      200,
+    );
     expect((await upload(fern, await photo().jpeg().toBuffer())).status).toBe(409);
     const after = await call<Board>('GET', '/api/days/today', { cookie: fern });
     expect(after.body.mine?.status).toBe('deleted');

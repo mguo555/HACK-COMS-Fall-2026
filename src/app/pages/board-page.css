@@ -1,0 +1,75 @@
+.welcome {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  max-width: 560px;
+  padding: 8px 0 24px;
+}
+
+.welcome h2 {
+  font-size: 26px;
+}
+
+.how {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--muted);
+}
+
+.how li::marker {
+  color: var(--leaf);
+  font-weight: 700;
+}
+
+.cta {
+  margin: -4px 0 32px;
+  color: var(--muted);
+}
+
+.dot {
+  margin: 0 6px;
+}
+
+.top-gap {
+  margin-top: 32px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.head h2 {
+  font-size: 22px;
+}
+
+.sort {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.sort button {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sort button.on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}

@@ -1,0 +1,114 @@
+@switch (state()) {
+  @case ('signed-out') {
+    @if (session.today(); as today) {
+      <app-theme-tag
+        [date]="today.date"
+        [theme]="today.theme"
+        [isToday]="true"
+        [nextDayAt]="session.nextDayAt()"
+      />
+    }
+    <section class="welcome">
+      <h2>One photo a day. Same theme for everyone.</h2>
+      <ol class="how">
+        <li>Sign in with your RIT email. It's just for RIT students.</li>
+        <li>Post one photo for the theme before midnight. No videos, no captions.</li>
+        <li>Like your favorites, then come back tomorrow for a new theme.</li>
+      </ol>
+      <a class="btn btn-primary" routerLink="/sign-in">Sign in with your RIT email</a>
+    </section>
+  }
+
+  @case ('error') {
+    <div class="empty top-gap">
+      <p>{{ error() }}</p>
+      <p><button type="button" class="link-btn" (click)="retry()">Try again</button></p>
+    </div>
+  }
+
+  @case ('ready') {
+    @if (day(); as day) {
+      <app-theme-tag
+        [date]="day.date"
+        [theme]="day.theme"
+        [isToday]="isToday()"
+        [nextDayAt]="session.nextDayAt()"
+      />
+
+      @if (isToday()) {
+        @if (session.canAct()) {
+          <app-uploader
+            [mine]="mine()"
+            [day]="day.date"
+            (posted)="posted($event)"
+            (openMine)="openMine()"
+          />
+        } @else if (!session.user()) {
+          <p class="cta">
+            <a routerLink="/sign-in">Sign in with your RIT email</a> to post your own.
+          </p>
+        }
+      } @else {
+        <p class="cta">
+          <a routerLink="/">Back to today</a>
+          <span class="dot">·</span>
+          <a routerLink="/themes">Other days</a>
+        </p>
+      }
+
+      <section aria-label="Photos">
+        <div class="head">
+          <h2>{{ posts().length }} {{ posts().length === 1 ? 'photo' : 'photos' }}</h2>
+          @if (posts().length > 1) {
+            <div class="sort" role="group" aria-label="Sort photos">
+              <button
+                type="button"
+                [class.on]="sort() === 'new'"
+                [attr.aria-pressed]="sort() === 'new'"
+                (click)="setSort('new')"
+              >
+                Newest
+              </button>
+              <button
+                type="button"
+                [class.on]="sort() === 'top'"
+                [attr.aria-pressed]="sort() === 'top'"
+                (click)="setSort('top')"
+              >
+                Most liked
+              </button>
+            </div>
+          }
+        </div>
+
+        @if (posts().length) {
+          <app-post-grid
+            [posts]="sorted()"
+            [canLike]="session.canAct()"
+            (open)="openIndex.set($event)"
+            (like)="like($event)"
+          />
+        } @else {
+          <div class="empty">
+            @if (isToday()) {
+              Nothing here yet. Somebody has to go first.
+            } @else {
+              Nobody posted that day.
+            }
+          </div>
+        }
+      </section>
+    }
+  }
+}
+
+@if (openIndex() !== null) {
+  <app-lightbox
+    [posts]="sorted()"
+    [index]="openIndex()!"
+    (go)="openIndex.set($event)"
+    (closed)="openIndex.set(null)"
+    (like)="like($event)"
+    (removed)="removed($event)"
+  />
+}

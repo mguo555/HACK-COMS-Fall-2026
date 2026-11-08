@@ -1,0 +1,91 @@
+<dialog
+  #dialog
+  class="box"
+  aria-label="Photo"
+  (close)="closed.emit()"
+  (keydown)="key($event)"
+  (click)="backdrop($event)"
+>
+  @if (post(); as post) {
+    <div class="stage" (click)="backdrop($event)">
+      <img [src]="full(post.id)" [alt]="'Photo by ' + post.handle" />
+    </div>
+
+    <button
+      type="button"
+      class="nav prev"
+      aria-label="Previous photo"
+      [disabled]="!hasPrev()"
+      (click)="step(-1)"
+    >
+      ‹
+    </button>
+    <button
+      type="button"
+      class="nav next"
+      aria-label="Next photo"
+      [disabled]="!hasNext()"
+      (click)="step(1)"
+    >
+      ›
+    </button>
+    <button type="button" class="x" aria-label="Close" (click)="close()">×</button>
+
+    <div class="bar">
+      <div class="who">
+        <a [routerLink]="['/u', post.handle]" (click)="close()">{{ post.handle }}</a>
+        <span>
+          {{ day(post.day) }}
+          @if (post.theme) {
+            · {{ post.theme }}
+          }
+        </span>
+      </div>
+
+      <div class="actions">
+        @switch (confirming()) {
+          @case (null) {
+            <app-like-button
+              [count]="post.likes"
+              [liked]="post.liked"
+              [disabled]="!session.canAct() || post.mine"
+              (toggle)="like.emit(post)"
+            />
+            @if (post.mine) {
+              <button type="button" class="act" (click)="confirming.set('delete')">Delete</button>
+            } @else if (session.canAct()) {
+              <button type="button" class="act" (click)="confirming.set('report')">Report</button>
+              @if (session.user()?.isAdmin) {
+                <button type="button" class="act" (click)="confirming.set('remove')">
+                  Take down
+                </button>
+              }
+            }
+          }
+          @default {
+            <span class="ask">
+              @switch (confirming()) {
+                @case ('delete') {
+                  Delete it? You still can't post again
+                  {{ post.day === session.today()?.date ? 'today' : 'that day' }}.
+                }
+                @case ('report') {
+                  Report this to the mods?
+                }
+                @case ('remove') {
+                  Take this down for everyone?
+                }
+              }
+            </span>
+            <button type="button" class="act danger" [disabled]="busy()" (click)="confirm(post)">
+              {{ confirming() === 'report' ? 'Report' : 'Yes, do it' }}
+            </button>
+            <button type="button" class="act" [disabled]="busy()" (click)="confirming.set(null)">
+              Cancel
+            </button>
+          }
+        }
+      </div>
+    </div>
+  }
+</dialog>

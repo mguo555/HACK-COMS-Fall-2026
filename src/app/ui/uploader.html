@@ -1,0 +1,80 @@
+@if (mine(); as post) {
+  <div class="slot done">
+    @if (post.status === 'live' || post.status === 'hidden') {
+      <button type="button" class="mini" aria-label="Open your photo" (click)="openMine.emit()">
+        <img [src]="thumb(post.id)" alt="" />
+      </button>
+    }
+    <div>
+      @switch (post.status) {
+        @case ('live') {
+          <p class="title">You posted today.</p>
+          <p class="muted">
+            That's your photo for today. Come back at midnight for the next theme.
+          </p>
+        }
+        @case ('hidden') {
+          <p class="title">Your photo is hidden for now.</p>
+          <p class="muted">Someone reported it, so a mod will take a look.</p>
+        }
+        @case ('deleted') {
+          <p class="title">You deleted today's photo.</p>
+          <p class="muted">You can post again when the next theme starts at midnight.</p>
+        }
+        @case ('removed') {
+          <p class="title">A mod took your photo down.</p>
+          <p class="muted">You can post again tomorrow.</p>
+        }
+      }
+    </div>
+  </div>
+} @else if (preview(); as src) {
+  <div class="slot picked">
+    @if (previewFailed()) {
+      <p class="no-preview">Your browser can't preview this file. You can still try posting it.</p>
+    } @else {
+      <img
+        class="preview"
+        [src]="src"
+        alt="The photo you picked"
+        (error)="previewFailed.set(true)"
+      />
+    }
+    <div class="side">
+      <p class="title">Post this one?</p>
+      <p class="muted">
+        You get one photo a day. Once it's up, today's spot is used, even if you delete it later.
+      </p>
+      <div class="buttons">
+        <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="post()">
+          {{ busy() ? 'Posting...' : 'Post it' }}
+        </button>
+        <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="clear()">
+          Pick another
+        </button>
+      </div>
+    </div>
+  </div>
+} @else {
+  <label
+    class="slot drop"
+    [class.over]="dragging()"
+    (dragover)="dragOver($event)"
+    (dragleave)="dragging.set(false)"
+    (drop)="dropped($event)"
+  >
+    <input class="sr-only" type="file" accept="image/*" (change)="picked($event)" />
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M16 27V14" />
+      <path
+        d="M16 17C16 11 12.5 7.5 6 7.5c0 6.5 3.5 10 10 9.5zM16 14c0-5 3-8 9-8 0 5.5-3 8.5-9 8z"
+      />
+    </svg>
+    <span class="title">Add your photo for today</span>
+    <span class="muted">Tap to pick one, or drop it here. Just the photo, no caption.</span>
+  </label>
+}
+
+@if (error(); as message) {
+  <p class="error" role="alert">{{ message }}</p>
+}

@@ -119,7 +119,9 @@ export class Store {
 
   constructor(file: string) {
     this.db = new DatabaseSync(file);
-    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 3000;');
+    this.db.exec(
+      'PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 3000;',
+    );
     const { user_version } = this.get<{ user_version: number }>('PRAGMA user_version')!;
     if (user_version === 0) {
       this.transaction(() => {

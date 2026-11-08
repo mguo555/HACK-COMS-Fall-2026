@@ -1,0 +1,49 @@
+<header class="site-header">
+  <div class="wrap bar">
+    <a routerLink="/" class="brand" aria-label="TheDailyStalk, today">
+      <app-logo />
+      <span class="word">TheDaily<em>Stalk</em></span>
+    </a>
+    <nav aria-label="Main">
+      <a
+        routerLink="/"
+        routerLinkActive="on"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="nav-today"
+        >Today</a
+      >
+      <a routerLink="/themes" routerLinkActive="on">Themes</a>
+      @if (session.user()?.isAdmin) {
+        <a routerLink="/mod" routerLinkActive="on">Mod</a>
+      }
+      @if (session.user(); as user) {
+        @if (user.handle) {
+          <a [routerLink]="['/u', user.handle]" routerLinkActive="on" class="me">{{
+            user.handle
+          }}</a>
+        }
+      } @else if (session.loaded()) {
+        <a routerLink="/sign-in" class="btn btn-primary btn-sm">Sign in</a>
+      }
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  @if (session.error() && !session.loaded()) {
+    <div class="down">
+      <p>{{ session.error() }}</p>
+      <button class="btn btn-sm" type="button" (click)="session.refresh()">Try again</button>
+    </div>
+  } @else if (session.loaded()) {
+    <router-outlet />
+  }
+</main>
+
+<footer class="wrap site-footer">
+  <p>TheDailyStalk. One photo a day, made at RIT.</p>
+</footer>
+
+@if (notice.message(); as message) {
+  <div class="toast" role="status">{{ message }}</div>
+}

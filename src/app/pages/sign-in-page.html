@@ -1,0 +1,97 @@
+<div class="card">
+  @switch (step()) {
+    @case ('email') {
+      <h1>Sign in</h1>
+      <p class="muted">
+        TheDailyStalk is for RIT students. Enter your RIT email and we'll send you a 6-digit code.
+        No password needed.
+      </p>
+      <form (submit)="$event.preventDefault(); sendCode()">
+        <label class="field">
+          RIT email
+          <input
+            type="email"
+            name="email"
+            autocomplete="email"
+            placeholder="abc1234@rit.edu"
+            required
+            [value]="email()"
+            (input)="email.set($any($event.target).value)"
+          />
+        </label>
+        <button class="btn btn-primary" type="submit" [disabled]="busy()">
+          {{ busy() ? 'Sending...' : 'Send me a code' }}
+        </button>
+      </form>
+    }
+
+    @case ('code') {
+      <h1>Check your email</h1>
+      <p class="muted">
+        We sent a code to <b>{{ email() }}</b
+        >. It works for 10 minutes. If it's not there, check your junk folder.
+      </p>
+      <form (submit)="$event.preventDefault(); verify()">
+        <label class="field">
+          Code
+          <input
+            class="code"
+            type="text"
+            name="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="000000"
+            [value]="code()"
+            (input)="typeCode($any($event.target).value)"
+          />
+        </label>
+        <button class="btn btn-primary" type="submit" [disabled]="busy() || code().length !== 6">
+          {{ busy() ? 'Checking...' : 'Sign in' }}
+        </button>
+      </form>
+      <p class="links">
+        <button
+          type="button"
+          class="link-btn"
+          [disabled]="busy() || resendIn() > 0"
+          (click)="sendCode()"
+        >
+          {{ resendIn() > 0 ? 'Send a new code in ' + resendIn() + 's' : 'Send a new code' }}
+        </button>
+        <button type="button" class="link-btn" (click)="startOver()">Use a different email</button>
+      </p>
+    }
+
+    @case ('handle') {
+      <h1>Pick a name</h1>
+      <p class="muted">
+        This shows up under your photos. Letters, numbers and underscores, up to {{ handleMax }}
+        characters. Your email stays private.
+      </p>
+      <form (submit)="$event.preventDefault(); saveHandle()">
+        <label class="field">
+          Name
+          <input
+            type="text"
+            name="handle"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            [attr.maxlength]="handleMax"
+            placeholder="fern"
+            [value]="handle()"
+            (input)="handle.set($any($event.target).value)"
+          />
+        </label>
+        <button class="btn btn-primary" type="submit" [disabled]="busy() || !handle().trim()">
+          {{ busy() ? 'Saving...' : 'Done' }}
+        </button>
+      </form>
+    }
+  }
+
+  @if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+</div>

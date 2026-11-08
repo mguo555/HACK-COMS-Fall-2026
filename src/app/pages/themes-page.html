@@ -1,0 +1,58 @@
+<h1 class="page-title">Themes</h1>
+<p class="lede">Everyone gets the same theme each day. It changes at midnight, Rochester time.</p>
+
+@if (signedOut()) {
+  <div class="empty gap">
+    <p>Sign in with your RIT email to see the themes and past days.</p>
+    <p><a routerLink="/sign-in">Sign in</a></p>
+  </div>
+} @else if (error(); as message) {
+  <div class="empty gap">{{ message }}</div>
+} @else if (list(); as list) {
+  <section>
+    <h2>Today</h2>
+    <a class="today" routerLink="/">
+      <span class="date">{{ day(list.today.date, 'long') }}</span>
+      <span class="theme">{{ list.today.theme }}</span>
+    </a>
+  </section>
+
+  <section>
+    <h2>Coming up</h2>
+    <ol class="upcoming">
+      @for (item of list.upcoming; track item.date) {
+        <li>
+          <span class="date">{{ day(item.date) }}</span>
+          <span class="theme">{{ item.theme }}</span>
+        </li>
+      }
+    </ol>
+    <p class="note">Themes further out can still change.</p>
+  </section>
+
+  <section>
+    <h2>Past days</h2>
+    @if (list.past.length) {
+      <ul class="past">
+        @for (item of list.past; track item.date) {
+          <li>
+            <a [routerLink]="['/day', item.date]">
+              <span class="cover">
+                @if (item.cover) {
+                  <img [src]="thumb(item.cover)" alt="" loading="lazy" />
+                }
+              </span>
+              <span class="date">{{ day(item.date) }}</span>
+              <span class="theme">{{ item.theme }}</span>
+              <span class="count"
+                >{{ item.posts }} {{ item.posts === 1 ? 'photo' : 'photos' }}</span
+              >
+            </a>
+          </li>
+        }
+      </ul>
+    } @else {
+      <div class="empty">Today is the first day. Check back tomorrow.</div>
+    }
+  </section>
+}

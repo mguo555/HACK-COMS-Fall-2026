@@ -20,7 +20,8 @@ app.server.listen(config.port, config.host, () => {
   if (!config.smtp) {
     console.log('[server] no SMTP set up: sign-in codes will print here instead of being emailed');
   }
-  if (!config.admins.size) console.log('[server] no ADMIN_EMAILS set: nobody can use the mod queue');
+  if (!config.admins.size)
+    console.log('[server] no ADMIN_EMAILS set: nobody can use the mod queue');
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
